@@ -1,0 +1,189 @@
+"""
+Reimplementation of "FactorVAE: A Probabilistic Dynamic Factor Model Based on
+Variational Autoencoder for Predicting Cross-Sectional Stock Returns"
+
+Author: UePG
+
+Reference:
+[1] https://ojs.aaai.org/index.php/AAAI/article/view/20369
+"""
+
+__version__ = "0.0.1"
+
+
+import torch
+import torch.nn as nn
+from torch.distributions import Normal, kl_divergence
+from torch.distributions.multivariate_normal import MultivariateNormal
+
+from .factor_decoder import FactorDecoder
+from .factor_encoder import FactorEncoder
+from .factor_predictor import FactorPredictor
+from .feature_extractor import FeatureExtractor
+
+
+class FactorVAE(nn.Module):
+    """Factor VAE (Variational Auto-Encoder)
+
+    It extracts effective factors from noisy market data. First, it obtain optimal
+    factors by an encoder-decoder architecture with access to future data, and then
+    train a factor predictor according a prior-posterior learning method, which extracts
+    factors to approximate the optimal factors.
+
+    Notation
+    - Scalar (constant)
+        - B: size of batch (arbitrary)
+        - N: size of stocks (arbitrary)
+        - T: size of time periods (arbitrary)
+        - C: size of characteristics
+        - H: size of hidden features
+        - M: size of portfolios
+        - K: size of factors
+    - Tensor (variable)
+        - `x`: characteristics, B*N*T*C
+        - `y`: stock returns, B*N
+        - `z_post`: posterior latent factor returns, B*K 
+        - `z_prior`: prior latent factor returns, B*K 
+        - `y_hat`: reconstructed stock returns, B*N
+        - `e`: hidden features, B*N*H
+        - `mu_post`: mean vector of `z_post`, B*K
+        - `sigma_post`: std vector of `z_post`, B*K
+        - `mu_prior`: mean vector of `z_prior`, B*K
+        - `sigma_prior`: std vector of `z_prior`, B*K
+        - `mu_y`: mean vector of `y_hat`, B*N
+        - `Sigma_y`: cov matrix of `y_hat`, B*N*N
+    """
+
+    def __init__(
+        self,
+        C: int,
+        H: int,
+        M: int,
+        K: int,
+        h_proj_size: int,
+        h_alpha_size: int,
+        h_prior_size: int,
+    ) -> None:
+        """Initialization
+
+        Parameters
+        ----------
+        C : int
+            Size of characteristics
+        H : int
+            Size of hidden features
+        M : int
+            Size of portfolios
+        K : int
+            Size of factors
+        h_proj_size : int
+            Size of hidden layer in projection layer
+        h_alpha_size : int
+            Size of hidden layer in alpha layer
+        h_prior_size : int
+            Size of hidden layer in prior layer
+        """
+        super(FactorVAE, self).__init__()
+        self.extractor = FeatureExtractor(C, H, h_proj_size)
+        self.encoder = FactorEncoder(H, M, K)
+        self.decoder = FactorDecoder(H, K, h_alpha_size)
+        self.predictor = FactorPredictor(H, K, h_prior_size)
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> tuple[torch.Tensor]:
+        """Get distribution parameters of `y_hat`, `z_post`, and `z_prior`
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Characteristics, B*N*T*C
+        y : torch.Tensor
+            Stock returns, B*N
+
+        Returns
+        -------
+        tuple[torch.Tensor]
+            torch.Tensor
+                Predicted mean vector of stock returns, B*N, denoted as `mu_y`
+            torch.Tensor
+                Predicted cov matrix of stock returns, B*N*N, denoted as `Sigma_y`
+            torch.Tensor
+                Means of posterior factor returns, B*K, denoted as `mu_post`
+            torch.Tensor
+                Stds of posterior factor returns, B*K, denoted as `sigma_post`
+            torch.Tensor
+                Means of prior factor returns, B*K, denoted as `mu_prior`
+            torch.Tensor
+                Stds of prior factor returns, B*K, denoted as `sigma_prior`
+        """
+        e = self.extractor(x)
+        mu_post, sigma_post = self.encoder(e, y)
+        mu_y, Sigma_y = self.decoder(e, mu_post, sigma_post)
+        mu_prior, sigma_prior = self.predictor(e)
+        return mu_y, Sigma_y, mu_post, sigma_post, mu_prior, sigma_prior
+
+    def predict(self, x: torch.Tensor) -> tuple[torch.Tensor]:
+        """Predict stock returns from stock characteristics
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Characteristics, B*N*T*C
+
+        Returns
+        -------
+        tuple[torch.Tensor]
+            torch.Tensor
+                Predicted mean vector of stock returns, B*N, denoted as `mu_y`
+            torch.Tensor
+                Predicted covariance matrix of stock returns, B*N, denoted as `Sigma_y`
+        """
+        with torch.no_grad():
+            e = self.extractor(x)
+            mu_prior, sigma_prior = self.predictor(e)
+            mu_y, Sigma_y = self.decoder(e, mu_prior, sigma_prior)
+        return mu_y, Sigma_y
+
+
+def loss_func(
+    y: torch.Tensor,
+    mu_y: torch.Tensor,
+    Sigma_y: torch.Tensor,
+    mu_post: torch.Tensor,
+    sigma_post: torch.Tensor,
+    mu_prior: torch.Tensor,
+    sigma_prior: torch.Tensor,
+    lmd: float = 1.0,
+) -> torch.Tensor:
+    """Loss function
+
+    Parameters
+    ----------
+    y : torch.Tensor
+        Stock returns, B*N
+    mu_y : torch.Tensor
+        Predicted mean vector of stock returns, B*N
+    Sigma_y : torch.Tensor
+        Predicted cov matrix of stock returns, B*N*N
+    mu_post : torch.Tensor
+        Means of posterior factor returns, B*K
+    sigma_post : torch.Tensor
+        Stds of posterior factor returns, B*K
+    mu_prior : torch.Tensor
+        Means of prior factor returns, B*K
+    sigma_prior : torch.Tensor
+        Stds of prior factor returns, B*K
+    lmd : float, optional
+        Lambda as regularization parameter, by default 1.0
+
+    Returns
+    -------
+    torch.Tensor
+        Loss value, B, denoted as `loss`
+    """
+    dist_y = MultivariateNormal(mu_y, Sigma_y)
+    ll = dist_y.log_prob(y)
+    dist_post = Normal(mu_post, sigma_post)
+    dist_prior = Normal(mu_prior, sigma_prior)
+    kld = kl_divergence(dist_post, dist_prior).sum(-1)
+    loss = -ll / y.shape[-1] + lmd * kld
+    return loss
