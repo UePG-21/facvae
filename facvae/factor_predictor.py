@@ -5,7 +5,9 @@ import torch.nn as nn
 class FactorPredictor(nn.Module):
     """Factor predictor
 
-    It extracts prior factor returns `z_prior` from hidden features `e`
+    It extracts prior factor returns `z_prior`, a random vector following the
+    independent Gaussian distribution, which can be described by the mean `mu_prior` and
+    the standard deviation `sigma_prior`, from hidden features `e`.
     """
 
     def __init__(self, H: int, K: int, h_prior_size: int) -> None:

@@ -52,13 +52,13 @@ As an asset pricing model in economics and finance, factor model has been widely
 `FeatureExtractor` extracts stocks hidden features `e` from the historical sequential characteristics `x`.
 
 ### 3.2. factor_encoder.py
-`FactorEncoder` extracts posterior factors `z_post` is a random vector following the independent Gaussian distribution, which can be descibed by the mean `mu_post` and the standard deviation `sigma_post`.
+`FactorEncoder` extracts posterior factors `z_post`, a random vector following the independent Gaussian distribution, which can be described by the mean `mu_post` and the standard deviation `sigma_post`, from hidden features `e` and stock returns `y`.
 
 ### 3.3. factor_decoder.py
-`FactorDecoder` calculates predicted stock returns `y_hat` from distribution parameters of factor returns `z` (could be `z_post` or `z_prior`) and hidden features `e`.
+`FactorDecoder` calculates predicted stock returns `y_hat`, a random vector following the Gaussian distribution, which can be described by the mean `mu_y` and the covariance matrix `Sigma_y`, from distribution parameters of factor returns `z` (could be `z_post` or `z_prior`) and hidden features `e`.
 
 ### 3.4. factor_predictor.py
-`FactorPredictor` extracts prior factor returns `z_prior` from hidden features `e`.
+`FactorPredictor` extracts prior factor returns `z_prior`, a random vector following the independent Gaussian distribution, which can be described by the mean `mu_prior` and the standard deviation `sigma_prior`, from hidden features `e`.
 
 
 ## 4. Example

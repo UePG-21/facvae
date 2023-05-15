@@ -5,9 +5,9 @@ import torch.nn as nn
 class FactorEncoder(nn.Module):
     """Factor encoder
 
-    It extracts posterior factors `z_post` is a random vector following the independent
+    It extracts posterior factors `z_post`, a random vector following the independent
     Gaussian distribution, which can be descibed by the mean `mu_post` and the standard
-    deviation `sigma_post`
+    deviation `sigma_post`, from hidden features `e` and stock returns `y`
     """
 
     def __init__(self, H: int, M: int, K: int) -> None:

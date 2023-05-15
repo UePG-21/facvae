@@ -5,8 +5,10 @@ import torch.nn as nn
 class FactorDecoder(nn.Module):
     """Factor decoder
 
-    It calculates predicted stock returns `y_hat` from distribution parameters of factor
-    returns `z` (could be `z_post` or `z_prior`) and hidden features `e`
+    It calculates predicted stock returns `y_hat`, a random vector following the
+    Gaussian distribution, which can be described by the mean `mu_y` and the covariance
+    matrix `Sigma_y`, from distribution parameters of factor returns `z` (could be
+    `z_post` or `z_prior`) and hidden features `e`
     """
 
     def __init__(self, H: int, K: int, h_alpha_size: int) -> None:
