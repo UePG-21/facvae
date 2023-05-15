@@ -24,27 +24,27 @@ As an asset pricing model in economics and finance, factor model has been widely
 
 
 ## 2. Notation
-- Scalar (constant)
-    - B: size of batch (arbitrary)
-    - N: size of stocks (arbitrary)
-    - T: size of time periods (arbitrary)
-    - C: size of characteristics
-    - H: size of hidden features
-    - M: size of portfolios
-    - K: size of factors
-- Tensor (variable)
-    - `x`: characteristics, B*N*T*C
-    - `y`: stock returns, B*N
-    - `z_post`: posterior latent factor returns, B*K 
-    - `z_prior`: prior latent factor returns, B*K 
-    - `y_hat`: reconstructed stock returns, B*N
-    - `e`: hidden features, B*N*H
-    - `mu_post`: mean vector of `z_post`, B*K
-    - `sigma_post`: std vector of `z_post`, B*K
-    - `mu_prior`: mean vector of `z_prior`, B*K
-    - `sigma_prior`: std vector of `z_prior`, B*K
-    - `mu_y`: mean vector of `y_hat`, B*N
-    - `Sigma_y`: cov matrix of `y_hat`, B*N*N
+### 2.1. Scalar (constant)
+- B: size of batch (arbitrary)
+- N: size of stocks (arbitrary)
+- T: size of time periods (arbitrary)
+- C: size of characteristics
+- H: size of hidden features
+- M: size of portfolios
+- K: size of factors
+### 2.2. Tensor (variable)
+- `x`: characteristics, B*N*T*C
+- `y`: stock returns, B*N
+- `z_post`: posterior latent factor returns, B*K 
+- `z_prior`: prior latent factor returns, B*K 
+- `y_hat`: reconstructed stock returns, B*N
+- `e`: hidden features, B*N*H
+- `mu_post`: mean vector of `z_post`, B*K
+- `sigma_post`: std vector of `z_post`, B*K
+- `mu_prior`: mean vector of `z_prior`, B*K
+- `sigma_prior`: std vector of `z_prior`, B*K
+- `mu_y`: mean vector of `y_hat`, B*N
+- `Sigma_y`: cov matrix of `y_hat`, B*N*N
 
 
 ## 3. Module
