@@ -1,4 +1,5 @@
 import torch
+
 from facvae import FactorVAE, loss_func
 
 if __name__ == "__main__":

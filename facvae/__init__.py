@@ -42,8 +42,8 @@ class FactorVAE(nn.Module):
     - Tensor (variable)
         - `x`: characteristics, B*N*T*C
         - `y`: stock returns, B*N
-        - `z_post`: posterior latent factor returns, B*K 
-        - `z_prior`: prior latent factor returns, B*K 
+        - `z_post`: posterior latent factor returns, B*K
+        - `z_prior`: prior latent factor returns, B*K
         - `y_hat`: reconstructed stock returns, B*N
         - `e`: hidden features, B*N*H
         - `mu_post`: mean vector of `z_post`, B*K
