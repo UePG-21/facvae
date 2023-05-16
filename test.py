@@ -1,10 +1,11 @@
 import torch
-
+from torch import cuda
 from facvae import FactorVAE, loss_func
 
 if __name__ == "__main__":
     import numpy as np
     import pandas as pd
+
 
     dir_main = "E:/Others/Programming/py_vscode/projects/signal_mixing/"
     dir_code = dir_main + "code/"
