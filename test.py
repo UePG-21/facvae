@@ -1,7 +1,8 @@
 import pandas as pd
 from facvae import FactorVAE
-from facvae.data import get_dataloaders
-from facvae.pipeline import test_model, train_model
+from facvae.data import change_freq, shift_ret, get_dataloaders
+from facvae.pipeline import loss_func_vae, test_model, train_model
+from facvae.backtesting import Backtester
 
 if __name__ == "__main__":
     # directories
@@ -25,25 +26,37 @@ if __name__ == "__main__":
     h_prior_size = 16
     partition = [0.7, 0.2, 0.1]
     lr = 0.0001
+    lmd = 1.0
+    max_grad = 1.0
 
     # model
-    fv = FactorVAE(C, H, M, K, h_prior_size, h_alpha_size, h_prior_size)
+    fv = FactorVAE(C, H, M, K, h_prior_size, h_alpha_size, h_prior_size).to("cuda")
 
     # data
     df = pd.read_pickle(dir_data + "df_l1_comb.pickle")
+    df.sort_index(level=(0, 1), inplace=True)
+    df = shift_ret(df)
     dl_train, dl_valid, dl_test = get_dataloaders(df, T, B, partition)
 
     # train
-    train_model(fv, dl_train, lr, E, 1.0)
+    train_model(fv, dl_train, lr, E, lmd=lmd, max_grad=max_grad)
 
     # test
     loss = test_model(fv, dl_test)
+    print("out-of-sample loss:", loss)
 
     # predict
     x, y = next(iter(dl_test))
     mu_y, Sigma_y = fv.predict(x)
-    
-    print(Sigma_y)
-    print(mu_y)
-    print(y)
-    print(((mu_y - y) ** 2).mean())
+
+    # backtest
+    len_test = next(iter(dl_test))[1].shape[0]
+    idx = pd.IndexSlice[df.index.get_level_values(0).unique()[-len_test:], :]
+    df = df.loc[idx]
+
+    df["factor"] = mu_y.flatten().cpu().numpy()
+    df = df[["factor", "ret"]]
+
+
+    bt = Backtester("factor", top_pct=0.25).feed(df).run()
+    bt.report()

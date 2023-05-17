@@ -13,7 +13,7 @@ Coding convention:
     following conditions:
     - having MultiIndex with time periods and samples in order
     - having time period index with value of the type pd.Timestamp
-    - sorted by time period index
+    - sorted by time period index with sample order fixed in each time period
     - having "ret" column if and only if "ret" means return and it's the last column
     - balanced if not otherwise specified
     - having no missing value if not otherwise specified
@@ -24,7 +24,7 @@ Coding convention:
 
 __version__ = "0.0.1"
 
-__all__ = ["data", "pipeline"]
+__all__ = ["data", "pipeline", "backtesting"]
 
 
 import torch

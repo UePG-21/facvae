@@ -63,15 +63,15 @@ As an asset pricing model in economics and finance, factor model has been widely
 `FactorVAE` (*top-level encapsulated class*) extracts effective factors from noisy market data. First, it obtain optimal factors by an encoder-decoder architecture with access to future data, and then train a factor predictor according a prior-posterior learning method, which extracts factors to approximate the optimal factors.
 
 ### 3.2. data.py
-`get_dataloaders()` (*top-level encapsulated function*) gets training, validation, and testing dataloader.
+`get_dataloaders()` gets training, validation, and testing dataloader.
 `RollingDataset` yields characteristics `x` in R^{N*T*C}, and future stock returns `y` in R^{N} in each iteration.
 `train_valid_test_split()` splits the full dataset into training, validation, and testing dataset.
 `change_freq()` changes the frequency of the panel data.
 `shift_ret()` shifts returns to the previous period then drop NaN.
 
 ### 3.3. pipeline.py
-`train_model()`, `validate_model()`, and `test_model()` (*top-level encapsulated functions*) are three stages of the pipeline of using `FactorVAE`.
-`loss_func()` gets the loss value of the model.
+`train_model()`, `validate_model()`, and `test_model()` are three stages of the pipeline of using `FactorVAE`.
+`loss_func_vae()` gets the loss value of the model.
 `gaussian_kld()`: calculate KL divergence of two multivariate independent Gaussian distributions.
 
 ### 3.4. feature_extractor.py

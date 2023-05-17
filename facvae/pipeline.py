@@ -7,7 +7,7 @@ from torch.nn.utils.clip_grad import clip_grad_value_
 from torch.utils.data import DataLoader
 
 
-def loss_func(
+def loss_func_vae(
     y: torch.Tensor,
     mu_y: torch.Tensor,
     Sigma_y: torch.Tensor,
@@ -17,7 +17,7 @@ def loss_func(
     sigma_prior: torch.Tensor,
     lmd: float = 1.0,
 ) -> torch.Tensor:
-    """Loss function
+    """Loss function of FactorVAE
 
     Parameters
     ----------
@@ -41,13 +41,13 @@ def loss_func(
     Returns
     -------
     torch.Tensor
-        Loss value, denoted as `loss`
+        Loss values, B, denoted as `loss`
     """
     dist_y = MultivariateNormal(mu_y, Sigma_y)
-    ll = dist_y.log_prob(y).sum(-1)
+    ll = dist_y.log_prob(y)
     kld = gaussian_kld(mu_post, mu_prior, sigma_post, sigma_prior)
-    loss = -ll / y.shape[-1] + lmd * kld
-    return loss.mean(-1)  # average loss across the batch
+    loss = -ll + lmd * kld
+    return loss
 
 
 def gaussian_kld(
@@ -58,13 +58,13 @@ def gaussian_kld(
     Parameters
     ----------
     mu1 : torch.Tensor
-        Means of the first Gaussian, B*N
+        Means of the first Gaussian, B*K
     mu2 : torch.Tensor
-        Means of the second Gaussian, B*N
+        Means of the second Gaussian, B*K
     sigma1 : torch.Tensor
-        Stds of the first Gaussian, B*N
+        Stds of the first Gaussian, B*K
     sigma2 : torch.Tensor
-        Stds of the second Gaussian, B*N
+        Stds of the second Gaussian, B*K
 
     Returns
     -------
@@ -84,8 +84,8 @@ def train_model(
     dataloader: DataLoader,
     learning_rate: float,
     epochs: int,
+    lmd: float = 1.0,
     max_grad: float | None = None,
-    loss_func: Callable = loss_func,
     opt_family: torch.optim.Optimizer = torch.optim.Adam,
     verbose_freq: int = 10,
 ) -> None:
@@ -101,10 +101,10 @@ def train_model(
         Learning rate
     epochs : int
         Number of epoch to train the model
+    lmd : float, optional
+        Lambda as regularization parameter in loss function, by default 1.0
     max_grad : float, optional
         Max absolute value of the gradients for gradient clipping, by default None
-    loss_func : Callable, optional
-        Loss function, by default loss_func
     optimizer_family : torch.optim.Optimizer, optional
         Optimizer, by default torch.optim.Adam
     verbose_freq : int, optional
@@ -120,7 +120,7 @@ def train_model(
         for b, (x, y) in enumerate(dataloader):
             # calculate loss
             out: tuple[torch.Tensor] = model(x, y)
-            loss: torch.Tensor = loss_func(y, *out)
+            loss: torch.Tensor = loss_func_vae(y, *out, lmd).mean(-1)
             loss.backward()
             # clip gradient
             if loss.item() > 1e9:
@@ -141,7 +141,10 @@ def validate_model():
 
 
 def test_model(
-    model: nn.Module, dataloader: DataLoader, loss_func: Callable = loss_func
+    model: nn.Module,
+    dataloader: DataLoader,
+    loss_func: Callable = loss_func_vae,
+    lmd: float = 1.0,
 ) -> torch.Tensor:
     """Test the model
 
@@ -153,6 +156,8 @@ def test_model(
         Testing dataloader
     loss_func : Callable, optional
         Loss function, by default loss_func
+    lmd : float, optional
+        Lambda as regularization parameter in loss function, by default 1.0
 
     Returns
     -------
@@ -167,5 +172,5 @@ def test_model(
         # calculate
         for x, y in dataloader:
             out: tuple[torch.Tensor] = model(x, y)
-            loss += loss_func(y, *out)
+            loss += loss_func(y, *out, lmd).mean(-1)
     return loss / len(dataloader)

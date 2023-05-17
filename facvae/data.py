@@ -13,7 +13,7 @@ class RollingDataset(TensorDataset):
     returns `y` in R^{N}
     """
 
-    def __init__(self, df: pd.DataFrame, window: int, to_device: bool = True) -> None:
+    def __init__(self, df: pd.DataFrame, window: int) -> None:
         """Initialization
 
         Parameters
@@ -22,8 +22,6 @@ class RollingDataset(TensorDataset):
             Panel data, T_ttl*N*(C+1), with "ret" column as future returns (shifted)
         window : int
             Size of rolling window, denoted as `T`
-        to_device : bool, optional
-            Put dataset to device automatically, by default True
         """
         self.T_ttl = df.index.get_level_values(0).nunique()
         self.N = df.index.get_level_values(1).nunique()
@@ -35,10 +33,9 @@ class RollingDataset(TensorDataset):
         ts = ts.reshape(self.T_ttl, self.N, self.C).permute(1, 0, 2)  # N*T_ttl*(C+1)
         self.x = ts[:, :, :-1]  # N*T_ttl*C
         self.y = ts[:, :, -1].squeeze(-1)  # N*T_ttl
-        if to_device:
-            device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-            self.x = self.x.to(device)
-            self.y = self.y.to(device)
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.x = self.x.to(device)
+        self.y = self.y.to(device)
 
     def __getitem__(self, index) -> tuple[torch.Tensor]:
         """Get item from dataset
@@ -165,38 +162,30 @@ def get_dataloaders(
     window: int,
     batch_size: int,
     partition: list[float],
-    freq: str = "d",
-    periods: int = 1,
     shuffle_ds: bool = False,
     shuffle_dl: bool = False,
-    num_workers: int = 0,
-    to_device: bool = True,
+    drop_last: bool = True,
 ) -> tuple[DataLoader]:
     """Get training, validation, and testing dataloader
 
     Parameters
     ----------
     df : pd.DataFrame
-        Panel data
+        Panel data, T_ttl*N*(C+1), with "ret" column as future returns (shifted)
     window : int
         Size of rolling window, denoted as `T`
     batch_size : int
         How many samples per batch to load
     partition : list[float]
         Percentages of training, validation, and testing dataset
-    freq : str, optional
-        Data frequency, chosen from ["d", "w", "m", "q"], by default "d"
-    periods : int, optional
-        Number of the periods we want to shift return back, by default 1
     shuffle_ds : bool, optional
         Shuffle the full dataset before spliting or not, by default False
     shuffle_dl : bool, optional
         Set to True to have the data reshuffled at every epoch, by default False
-    num_workers : int, optional
-        How many subprocesses to use for data loading. 0 means that the data will be
-        loaded in the main process, by default 0
-    to_device : bool, optional
-        Put dataset to device automatically, by default True
+    drop_last : bool, optionl
+        Set to True to drop the last incomplete batch, if the dataset size is not
+        divisible by the batch size. If False and the size of dataset is not divisible
+        by the batch size, then the last batch will be smaller, by default True
 
     Returns
     -------
@@ -208,14 +197,11 @@ def get_dataloaders(
         DataLoader
             Testing dataloader, denoted as `ds_test`
     """
-    # process df
-    df = change_freq(df, freq) if freq != "d" else df.copy()
-    df = shift_ret(df, periods)
     # get datasets
-    ds_full = RollingDataset(df, window, to_device)
+    ds_full = RollingDataset(df, window)
     ds_train, ds_valid, ds_test = train_valid_test_split(ds_full, partition, shuffle_ds)
     # get dataloaders
-    dl_train = DataLoader(ds_train, batch_size, shuffle_dl, num_workers=num_workers)
-    dl_valid = DataLoader(ds_valid, batch_size, shuffle_dl, num_workers=num_workers)
-    dl_test = DataLoader(ds_test, batch_size, shuffle_dl, num_workers=num_workers)
+    dl_train = DataLoader(ds_train, batch_size, shuffle_dl, drop_last=drop_last)
+    dl_valid = DataLoader(ds_valid, len(ds_valid), shuffle_dl)
+    dl_test = DataLoader(ds_test, len(ds_test), shuffle_dl)
     return dl_train, dl_valid, dl_test
