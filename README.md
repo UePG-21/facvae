@@ -30,8 +30,8 @@ As an asset pricing model in economics and finance, factor model has been widely
 
 ## 2. Notation
 ### 2.1. Scalar (constant)
-- E: size of epoch (arbitrary)
-- B: size of batch (arbitrary)
+- E: size of epochs (arbitrary)
+- B: size of batches (arbitrary)
 - N: size of stocks (arbitrary)
 - T: size of time periods (arbitrary)
 - C: size of characteristics
@@ -41,14 +41,19 @@ As an asset pricing model in economics and finance, factor model has been widely
 ### 2.2. Tensor (variable)
 - `x`: characteristics, B\*N\*T\*C
 - `y`: stock returns, B\*N
+- `e`: hidden features, B\*N\*H
+- `y_p`: portfolio returns, B\*M
 - `z_post`: posterior latent factor returns, B\*K 
 - `z_prior`: prior latent factor returns, B\*K 
+- `alpha`: idiosyncratic returns, B\*N
+- `beta`: factor exposures, B\*N\*K
 - `y_hat`: reconstructed stock returns, B\*N
-- `e`: hidden features, B\*N\*H
 - `mu_post`: mean vector of `z_post`, B\*K
 - `sigma_post`: std vector of `z_post`, B\*K
 - `mu_prior`: mean vector of `z_prior`, B\*K
 - `sigma_prior`: std vector of `z_prior`, B\*K
+- `mu_alpha`: mean vector of `alpha`, B\*N
+- `sigma_alpha`: std vector of `alpha`, B\*N
 - `mu_y`: mean vector of `y_hat`, B\*N
 - `Sigma_y`: cov matrix of `y_hat`, B\*N\*N
 
@@ -65,7 +70,7 @@ As an asset pricing model in economics and finance, factor model has been widely
 `shift_ret()` shifts returns to the previous period then drop NaN.
 
 ### 3.3. pipeline.py
-`train_model()`, `valid_model`, and `test_model` (*top-level encapsulated function*) are three stages of the pipeline of using `FactorVAE`.
+`train_model()`, `validate_model()`, and `test_model()` (*top-level encapsulated functions*) are three stages of the pipeline of using `FactorVAE`.
 `loss_func()` gets the loss value of the model.
 `gaussian_kld()`: calculate KL divergence of two multivariate independent Gaussian distributions.
 
@@ -74,12 +79,17 @@ As an asset pricing model in economics and finance, factor model has been widely
 
 ### 3.5. factor_encoder.py
 `FactorEncoder` extracts posterior factors `z_post`, a random vector following the independent Gaussian distribution, which can be described by the mean `mu_post` and the standard deviation `sigma_post`, from hidden features `e` and stock returns `y`.
+`PortfolioLayer` dynamically re-weights the portfolios on the basis of stock hidden features `e`.
+`MappingLayer` maps `y_p` as the portfolio returns to the distribution of posterior factor returns `z_post`.
 
 ### 3.6. factor_decoder.py
 `FactorDecoder` calculates predicted stock returns `y_hat`, a random vector following the Gaussian distribution, which can be described by the mean `mu_y` and the covariance matrix `Sigma_y`, from distribution parameters of factor returns `z` (could be `z_post` or `z_prior`) and hidden features `e`.
+`AlphaLayer` outputs idiosyncratic returns `alpha` from the hidden features `e`.
+`BetaLayer` calculates factor exposures `beta` from hidden feautres `e`.
 
 ### 3.7. factor_predictor.py
 `FactorPredictor` extracts prior factor returns `z_prior`, a random vector following the independent Gaussian distribution, which can be described by the mean `mu_prior` and the standard deviation `sigma_prior`, from hidden features `e`.
+`MultiheadGlobalAttention` implements a specific type of multi-head global attention.
 
 
 ## 4. Example

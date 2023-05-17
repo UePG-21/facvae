@@ -52,7 +52,7 @@ class FactorPredictor(nn.Module):
 
 
 class MultiheadGlobalAttention(nn.Module):
-    """Multi-head global attention (a specific case)
+    """Multi-head global attention (a specific type)
 
     From e in R^{token_size(N)*embed_dim} to h in R^{num_heads*value_dim}:
     k_n = W_key @ e_n, v_n = W_value @ e_n

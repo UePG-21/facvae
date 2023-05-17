@@ -107,7 +107,7 @@ class AlphaLayer(nn.Module):
 class BetaLayer(nn.Module):
     """Beta layer
 
-    It calculates factor exposure `beta` from hidden feautres `e`
+    It calculates factor exposures `beta` from hidden feautres `e`
     """
 
     def __init__(self, H: int, K: int) -> None:
