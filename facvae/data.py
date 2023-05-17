@@ -171,8 +171,8 @@ def get_dataloaders(
     shuffle_dl: bool = False,
     num_workers: int = 0,
     to_device: bool = True,
-) -> DataLoader:
-    """Get an instance of DataLoader
+) -> tuple[DataLoader]:
+    """Get training, validation, and testing dataloader
 
     Parameters
     ----------
@@ -200,8 +200,13 @@ def get_dataloaders(
 
     Returns
     -------
-    DataLoader
-        An instance of DataLoader
+    tuple[DataLoader]
+        DataLoader
+            Training dataloader, denoted as `ds_train`
+        DataLoader
+            Validation dataloader, denoted as `ds_valid`
+        DataLoader
+            Testing dataloader, denoted as `ds_test`
     """
     # process df
     df = change_freq(df, freq) if freq != "d" else df.copy()

@@ -54,16 +54,31 @@ As an asset pricing model in economics and finance, factor model has been widely
 
 
 ## 3. Module
-### 3.1. feature_extractor.py
+### 3.1. \_\_init\_\_.py
+`FactorVAE` (*top-level encapsulated class*) extracts effective factors from noisy market data. First, it obtain optimal factors by an encoder-decoder architecture with access to future data, and then train a factor predictor according a prior-posterior learning method, which extracts factors to approximate the optimal factors.
+
+### 3.2. data.py
+`get_dataloaders()` (*top-level encapsulated function*) gets training, validation, and testing dataloader.
+`RollingDataset` yields characteristics `x` in R^{N*T*C}, and future stock returns `y` in R^{N} in each iteration.
+`train_valid_test_split()` splits the full dataset into training, validation, and testing dataset.
+`change_freq()` changes the frequency of the panel data.
+`shift_ret()` shifts returns to the previous period then drop NaN.
+
+### 3.3. pipeline.py
+`train_model()`, `valid_model`, and `test_model` (*top-level encapsulated function*) are three stages of the pipeline of using `FactorVAE`.
+`loss_func()` gets the loss value of the model.
+`gaussian_kld()`: calculate KL divergence of two multivariate independent Gaussian distributions.
+
+### 3.4. feature_extractor.py
 `FeatureExtractor` extracts stocks hidden features `e` from the historical sequential characteristics `x`.
 
-### 3.2. factor_encoder.py
+### 3.5. factor_encoder.py
 `FactorEncoder` extracts posterior factors `z_post`, a random vector following the independent Gaussian distribution, which can be described by the mean `mu_post` and the standard deviation `sigma_post`, from hidden features `e` and stock returns `y`.
 
-### 3.3. factor_decoder.py
+### 3.6. factor_decoder.py
 `FactorDecoder` calculates predicted stock returns `y_hat`, a random vector following the Gaussian distribution, which can be described by the mean `mu_y` and the covariance matrix `Sigma_y`, from distribution parameters of factor returns `z` (could be `z_post` or `z_prior`) and hidden features `e`.
 
-### 3.4. factor_predictor.py
+### 3.7. factor_predictor.py
 `FactorPredictor` extracts prior factor returns `z_prior`, a random vector following the independent Gaussian distribution, which can be described by the mean `mu_prior` and the standard deviation `sigma_prior`, from hidden features `e`.
 
 
