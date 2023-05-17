@@ -47,27 +47,3 @@ class FeatureExtractor(nn.Module):
         _, hidden = self.gru(h_proj)
         e = hidden.view((-1, N, self.H))
         return e
-
-
-if __name__ == "__main__":
-    import numpy as np
-    import pandas as pd
-
-    dir_main = "E:/Others/Programming/py_vscode/projects/signal_mixing/"
-    dir_code = dir_main + "code/"
-    dir_data = dir_main + "data/"
-    dir_config = dir_main + "config/"
-    dir_result = dir_main + "result/"
-
-    df_l1 = pd.read_pickle(dir_data + "df_l1_comb.pickle").sort_index(level=0)
-    X = (
-        df_l1.loc[:"2015-01-30", :"maxretpayoff"]
-        .values.reshape(20, 74, 10)
-        .transpose(1, 0, 2)
-        .reshape(2, 37, 20, 10)
-    )
-    X = torch.tensor(X).float()
-    print(X.shape)
-    fe = FeatureExtractor(37, 20, 10, 5, 5)
-    E = fe(X)
-    print(E.shape)

@@ -52,7 +52,7 @@ class FactorPredictor(nn.Module):
 
 
 class MultiheadGlobalAttention(nn.Module):
-    """Multi-head global attention (a special implement)
+    """Multi-head global attention (a specific case)
 
     From e in R^{token_size(N)*embed_dim} to h in R^{num_heads*value_dim}:
     k_n = W_key @ e_n, v_n = W_value @ e_n
@@ -75,7 +75,7 @@ class MultiheadGlobalAttention(nn.Module):
         """
         super(MultiheadGlobalAttention, self).__init__()
         self.embed_dim = embed_dim
-        self.q = nn.Parameter(torch.rand(num_heads, embed_dim))
+        self.q = nn.Parameter(torch.randn(num_heads, embed_dim))
         self.k_layer = nn.Linear(embed_dim, embed_dim, bias=False)
         self.v_layer = nn.Linear(embed_dim, value_dim, bias=False)
 
@@ -100,45 +100,3 @@ class MultiheadGlobalAttention(nn.Module):
         a = s / torch.sum(s, dim=-1).unsqueeze(-1)  # B*num_heads*token_size
         h = torch.einsum("bnt, bnv -> btv", a, v)
         return h
-
-
-if __name__ == "__main__":
-    import numpy as np
-    import pandas as pd
-    from feature_extractor import FeatureExtractor
-
-    dir_main = "E:/Others/Programming/py_vscode/projects/signal_mixing/"
-    dir_code = dir_main + "code/"
-    dir_data = dir_main + "data/"
-    dir_config = dir_main + "config/"
-    dir_result = dir_main + "result/"
-
-    H = 16
-    N = 74
-    T = 20
-    C = 10
-    M = 18
-    K = 8
-    h_proj_size = 6
-    h_alpha_size = 6
-    h_prior_size = 6
-
-    df_l1 = pd.read_pickle(dir_data + "df_l1_comb.pickle").sort_index(level=0)
-    x = (
-        df_l1.loc[:"2015-01-30", :"maxretpayoff"]
-        .values.reshape(T, N, C)
-        .transpose(1, 0, 2)
-        .reshape(1, N, T, C)
-    )
-    x = torch.tensor(x).float()
-    y = df_l1.loc["2015-01-30", "ret"].values.reshape(1, N)
-    y = torch.tensor(y).float()
-    fe = FeatureExtractor(N, T, C, H, h_proj_size)
-    e = fe(x)
-
-    fp = FactorPredictor(H, K, h_prior_size)
-    mu_prior, sigma_prior = fp(e)
-    print(mu_prior.shape)
-    print(mu_prior)
-    print(sigma_prior.shape)
-    print(sigma_prior)

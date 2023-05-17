@@ -52,9 +52,9 @@ class FactorDecoder(nn.Module):
         mu_alpha, sigma_alpha = self.alpha_layer(e)
         beta = self.beta_layer(e)
         mu_y = mu_alpha + torch.einsum("bnk, bk -> bn", beta, mu_z)
-        Sigma_z = torch.diag_embed(sigma_z) ** 2
+        Sigma_z = torch.diag_embed(sigma_z**2)
         Sigma_y = torch.bmm(torch.bmm(beta, Sigma_z), beta.permute(0, 2, 1))
-        Sigma_y += torch.diag_embed(sigma_alpha) ** 2
+        Sigma_y += torch.diag_embed(sigma_alpha**2)
         return mu_y, Sigma_y
 
 
@@ -138,51 +138,3 @@ class BetaLayer(nn.Module):
         """
         beta = self.bt_layer(e)
         return beta
-
-
-if __name__ == "__main__":
-    import numpy as np
-    import pandas as pd
-    from factor_encoder import FactorEncoder
-    from feature_extractor import FeatureExtractor
-
-    dir_main = "E:/Others/Programming/py_vscode/projects/signal_mixing/"
-    dir_code = dir_main + "code/"
-    dir_data = dir_main + "data/"
-    dir_config = dir_main + "config/"
-    dir_result = dir_main + "result/"
-
-    H = 5
-    N = 74
-    T = 20
-    C = 10
-    M = 18
-    K = 9
-    h_proj_size = 6
-    h_alpha_size = 6
-
-    df_l1 = pd.read_pickle(dir_data + "df_l1_comb.pickle").sort_index(level=0)
-    x = (
-        df_l1.loc[:"2015-01-30", :"maxretpayoff"]
-        .values.reshape(T, N, C)
-        .transpose(1, 0, 2)
-        .reshape(1, N, T, C)
-    )
-    x = torch.tensor(x).float()
-    y = df_l1.loc["2015-01-30", "ret"].values.reshape(1, N)
-    y = torch.tensor(y).float()
-    fe = FeatureExtractor(N, T, C, H, h_proj_size)
-    e = fe(x)
-
-    enc = FactorEncoder(H, M, K)
-    mu_post, sigma_post = enc(e, y)
-    print(mu_post.shape)
-    print(sigma_post.shape)
-
-    z = sigma_post * torch.randn(sigma_post.shape) + mu_post
-    print(z.shape)
-
-    dec = FactorDecoder(H, K, h_alpha_size)
-    mu_y, Sigma_y = dec(e, mu_post, sigma_post)
-    print(mu_y.shape)
-    print(Sigma_y)

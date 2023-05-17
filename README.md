@@ -7,6 +7,11 @@ A PyTorch inplementation of FactorVAE refering to ["FactorVAE: A Probabilistic D
 As an asset pricing model in economics and finance, factor model has been widely used in quantitative investment. Towards building more effective factor models, recent years have witnessed the paradigm shift from linear models to more flexible nonlinear data-driven machine learning models. However, due to low signal-to-noise ratio of the financial data, it is quite challenging to learn effective factor models. In this paper, we propose a novel factor model, FactorVAE, as a probabilistic model with inherent randomness for noise modeling. Essentially, our model integrates the dynamic factor model (DFM) with the variational autoencoder (VAE) in machine learning, and we propose a prior-posterior learning method based on VAE, which can effectively guide the learning of model by approximating an optimal posterior factor model with future information. Particularly, considering that risk modeling is important for the noisy stock data, FactorVAE can estimate the variances from the distribution over the latent space of VAE, in addition to predicting returns. The experiments on the real stock market data demonstrate the effectiveness of FactorVAE, which outperforms various baseline methods.
 
 ### 1.2. Visualization
+**1.2.1. Brief illustration**
+<div align=center>
+    <img src="illustration.png" width="40%" height="40%">
+</div>
+
 **1.2.1. Overall framework**
 <div align=center>
     <img src="overall_framework.png" width="80%" height="80%">
@@ -25,6 +30,7 @@ As an asset pricing model in economics and finance, factor model has been widely
 
 ## 2. Notation
 ### 2.1. Scalar (constant)
+- E: size of epoch (arbitrary)
 - B: size of batch (arbitrary)
 - N: size of stocks (arbitrary)
 - T: size of time periods (arbitrary)
@@ -64,5 +70,47 @@ As an asset pricing model in economics and finance, factor model has been widely
 ## 4. Example
 *To be continued*
 ```Python
-from facvae import FactorVAE, loss
+import pandas as pd
+from facvae import FactorVAE
+from facvae.data import get_dataloaders
+from facvae.pipeline import train_model, valide_model, test_model
+
+
+if __name__ == "__main__":
+    # constants
+    E = 25
+    B = 16
+    N = 74
+    T = 20
+    C = 28
+    H = 10
+    M = 32
+    K = 8
+    h_prior_size = 16
+    h_alpha_size = 16
+    h_prior_size = 16
+    partition = [0.7, 0.2, 0.1]
+    lr = 0.0001
+
+    # model
+    fv = FactorVAE(C, H, M, K, h_prior_size, h_alpha_size, h_prior_size)
+
+    # data
+    df = pd.read_pickle("df.pickle")
+    dl_train, dl_valid, dl_test = get_dataloaders(df, T, B, partition)
+
+    # train
+    train_model(fv, dl_train, lr, E, 1.0)
+
+    # test
+    loss = test_model(fv, dl_test)
+
+    # predict
+    x, y = next(iter(dl_test))
+    mu_y, Sigma_y = fv.predict(x)
+    
+    print(Sigma_y)
+    print(mu_y)
+    print(y)
+    print(((mu_y - y) ** 2).mean())
 ```

@@ -6,15 +6,29 @@ Author: UePG
 
 Reference:
 [1] https://ojs.aaai.org/index.php/AAAI/article/view/20369
+
+Coding convention:
+1) Panel data
+    When we mention panel data, it is of type pd.DataFrame and should satisfy the
+    following conditions:
+    - having MultiIndex with time periods and samples in order
+    - having time period index with value of the type pd.Timestamp
+    - sorted by time period index
+    - having "ret" column if and only if "ret" means return and it's the last column
+    - balanced if not otherwise specified
+    - having no missing value if not otherwise specified
+2) Letter case
+    Lowercase letters are used to denote vectors or matrices (tensor); capital letters
+    are used to denote scalars (constant)
 """
 
 __version__ = "0.0.1"
 
+__all__ = ["data", "pipeline"]
+
 
 import torch
 import torch.nn as nn
-from torch.distributions import Normal, kl_divergence
-from torch.distributions.multivariate_normal import MultivariateNormal
 
 from .factor_decoder import FactorDecoder
 from .factor_encoder import FactorEncoder
@@ -142,48 +156,3 @@ class FactorVAE(nn.Module):
             mu_prior, sigma_prior = self.predictor(e)
             mu_y, Sigma_y = self.decoder(e, mu_prior, sigma_prior)
         return mu_y, Sigma_y
-
-
-def loss_func(
-    y: torch.Tensor,
-    mu_y: torch.Tensor,
-    Sigma_y: torch.Tensor,
-    mu_post: torch.Tensor,
-    sigma_post: torch.Tensor,
-    mu_prior: torch.Tensor,
-    sigma_prior: torch.Tensor,
-    lmd: float = 1.0,
-) -> torch.Tensor:
-    """Loss function
-
-    Parameters
-    ----------
-    y : torch.Tensor
-        Stock returns, B*N
-    mu_y : torch.Tensor
-        Predicted mean vector of stock returns, B*N
-    Sigma_y : torch.Tensor
-        Predicted cov matrix of stock returns, B*N*N
-    mu_post : torch.Tensor
-        Means of posterior factor returns, B*K
-    sigma_post : torch.Tensor
-        Stds of posterior factor returns, B*K
-    mu_prior : torch.Tensor
-        Means of prior factor returns, B*K
-    sigma_prior : torch.Tensor
-        Stds of prior factor returns, B*K
-    lmd : float, optional
-        Lambda as regularization parameter, by default 1.0
-
-    Returns
-    -------
-    torch.Tensor
-        Loss value, B, denoted as `loss`
-    """
-    dist_y = MultivariateNormal(mu_y, Sigma_y)
-    ll = dist_y.log_prob(y)
-    dist_post = Normal(mu_post, sigma_post)
-    dist_prior = Normal(mu_prior, sigma_prior)
-    kld = kl_divergence(dist_post, dist_prior).sum(-1)
-    loss = -ll / y.shape[-1] + lmd * kld
-    return loss
