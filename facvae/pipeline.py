@@ -79,7 +79,9 @@ def gaussian_kld(
     )
     return kld_n.sum(-1)
 
+
 # TODO: schedule lr
+
 
 def train_model(
     model: nn.Module,
@@ -134,13 +136,12 @@ def train_model(
             #     total_norm = total_norm ** (1.0 / 2)
             # print("before", total_norm)
 
-
             # clip gradient
             if loss.item() > 1e9:
                 optimizer.zero_grad()  # avoid getting inf gradients
             elif max_grad is not None:
                 clip_grad_value_(model.parameters(), max_grad)
-            
+
             # total_norm = 0.0
             # for p in model.parameters():
             #     param_norm = p.grad.data.norm(2)

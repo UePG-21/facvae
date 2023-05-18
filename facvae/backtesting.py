@@ -145,6 +145,8 @@ class Backtester:
                 cs_factor *= -1
             l_thresh = cs_factor.quantile(1 - self.top_pct)
             l_cond = cs_factor >= l_thresh
+            if l_cond.sum() == 0:
+                return pd.Series(0.0, index=cs_factor.index)
             pos = np.where(l_cond, 1 / l_cond.sum(), 0.0)
             if not self.long_only:
                 s_thresh = cs_factor.quantile(self.top_pct)
@@ -198,7 +200,7 @@ class Backtester:
         Parameters
         ----------
         df : pd.DataFrame
-            Panel data of `factor` and `ret`, `ret` should be the next period return
+            Panel data of `factor` and `ret`, `ret` should be future returns
 
         Returns
         -------

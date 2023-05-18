@@ -1,9 +1,8 @@
 import pandas as pd
 from facvae import FactorVAE
-from facvae.data import change_freq, shift_ret, get_dataloaders
-from facvae.pipeline import loss_func_vae, test_model, train_model
 from facvae.backtesting import Backtester
-
+from facvae.data import change_freq, get_dataloaders, shift_ret
+from facvae.pipeline import loss_func_vae, test_model, train_model
 
 """
 total_norm = 0.0

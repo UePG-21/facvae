@@ -37,13 +37,13 @@ class RollingDataset(TensorDataset):
         self.x = self.x.to(device)
         self.y = self.y.to(device)
 
-    def __getitem__(self, index) -> tuple[torch.Tensor]:
+    def __getitem__(self, index: int) -> tuple[torch.Tensor]:
         """Get item from dataset
 
         Parameters
         ----------
-        index : _type_
-            _description_
+        index : int
+            Index of the item
 
         Returns
         -------
@@ -127,7 +127,7 @@ def change_freq(df: pd.DataFrame, freq: str) -> pd.DataFrame:
     feature, ret = df.drop("ret", axis=1), df[["ret"]]
     df_new: pd.DataFrame = feature.groupby(level=1).resample(freq, level=0).last()
     df_new["ret"] = ret.groupby(level=1).resample(freq, level=0).sum()
-    return df_new.swaplevel(0, 1, axis=0).sort_index(level=0)
+    return df_new.swaplevel(0, 1, axis=0).sort_index(level=(0, 1))
 
 
 def shift_ret(df: pd.DataFrame, periods: int = 1) -> pd.DataFrame:
