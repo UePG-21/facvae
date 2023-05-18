@@ -45,6 +45,7 @@ def loss_func_vae(
     """
     dist_y = MultivariateNormal(mu_y, Sigma_y)
     ll = dist_y.log_prob(y)
+    # ll = -((y - mu_y)**2).sum(-1)
     kld = gaussian_kld(mu_post, mu_prior, sigma_post, sigma_prior)
     loss = -ll + lmd * kld
     return loss
@@ -72,12 +73,13 @@ def gaussian_kld(
         KL divergence, B, denoted as `kld`
     """
     kld_n = (
-        torch.log(sigma1 / sigma2)
+        torch.log(sigma2 / sigma1)
         + (sigma1**2 + (mu1 - mu2) ** 2) / sigma2**2 / 2
         - 0.5
     )
     return kld_n.sum(-1)
 
+# TODO: schedule lr
 
 def train_model(
     model: nn.Module,
@@ -106,7 +108,7 @@ def train_model(
     max_grad : float, optional
         Max absolute value of the gradients for gradient clipping, by default None
     optimizer_family : torch.optim.Optimizer, optional
-        Optimizer, by default torch.optim.Adam
+        Optimizer family, by default torch.optim.Adam
     verbose_freq : int, optional
         Frequncy to report the loss, by default 10
     """
@@ -118,18 +120,36 @@ def train_model(
     for e in range(epochs):
         print("=" * 16, f"Epoch {e}", "=" * 16)
         for b, (x, y) in enumerate(dataloader):
+            optimizer.zero_grad()
             # calculate loss
             out: tuple[torch.Tensor] = model(x, y)
+            print(out[0][0])
             loss: torch.Tensor = loss_func_vae(y, *out, lmd).mean(-1)
             loss.backward()
+
+            # total_norm = 0.0
+            # for p in model.parameters():
+            #     param_norm = p.grad.data.norm(2)
+            #     total_norm += param_norm.item() ** 2
+            #     total_norm = total_norm ** (1.0 / 2)
+            # print("before", total_norm)
+
+
             # clip gradient
             if loss.item() > 1e9:
                 optimizer.zero_grad()  # avoid getting inf gradients
             elif max_grad is not None:
                 clip_grad_value_(model.parameters(), max_grad)
+            
+            # total_norm = 0.0
+            # for p in model.parameters():
+            #     param_norm = p.grad.data.norm(2)
+            #     total_norm += param_norm.item() ** 2
+            #     total_norm = total_norm ** (1.0 / 2)
+            # print("after", total_norm)
+
             # update parameters
             optimizer.step()
-            optimizer.zero_grad()
             # report loss
             if b % verbose_freq == 0:
                 print(f"batch: {b}, loss: {loss.item()}")

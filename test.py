@@ -4,6 +4,17 @@ from facvae.data import change_freq, shift_ret, get_dataloaders
 from facvae.pipeline import loss_func_vae, test_model, train_model
 from facvae.backtesting import Backtester
 
+
+"""
+total_norm = 0.0
+for p in model.parameters():
+    param_norm = p.grad.data.norm(2)
+    total_norm += param_norm.item() ** 2
+    total_norm = total_norm ** (1.0 / 2)
+print("after", total_norm)
+
+"""
+
 if __name__ == "__main__":
     # directories
     dir_main = "E:/Others/Programming/py_vscode/projects/signal_mixing/"
@@ -56,7 +67,6 @@ if __name__ == "__main__":
 
     df["factor"] = mu_y.flatten().cpu().numpy()
     df = df[["factor", "ret"]]
-
 
     bt = Backtester("factor", top_pct=0.25).feed(df).run()
     bt.report()
