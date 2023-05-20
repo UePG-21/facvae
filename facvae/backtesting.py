@@ -3,58 +3,58 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 
-def _calc_nv_mdd(
-    rets: pd.Series, recovery_thresh: float = 0.0
-) -> tuple[pd.Series, dict]:
-    """Calculate net value and maximum drawdown
+def _calc_nv_mdd(df_ret: pd.DataFrame) -> tuple[pd.DataFrame]:
+    """Calculate net values and maximum drawdown
 
     Parameters
     ----------
-    rets : pd.Series
-        Returns
-    recovery_thresh : float, optional
-        Threshold to determine a recovery after reaching the mdd, by default 0.0
+    df_ret : pd.DataFrame
+        Returns of assets
 
     Returns
     -------
-    tuple[pd.Series, dict]
-        pd.Series
+    tuple[pd.DataFrame]
+        pd.DataFrame
             Net values
-        dict
-            Relative indicators about maximum drawdown
+        pd.DataFrame
+            Maximum drawdown info
     """
+    cols = df_ret.columns
     # net values (using simple interest)
-    nvs = 1 + rets.cumsum()
+    df_nv = 1 + df_ret.cumsum()
     # nv value rolling max
-    nvs_rolling_max = nvs.cummax()
+    df_nv_rolling_max = df_nv.cummax()
     # drawdown
-    dd = (nvs - nvs_rolling_max) / nvs_rolling_max
+    df_dd = (df_nv - df_nv_rolling_max) / df_nv_rolling_max
     # maximum drawdown
-    mdd = dd.min()
-    # mdd key timestamps
-    if mdd:
-        mdd_end_ts = dd.idxmin()
-        mdd_start_ts = nvs.loc[:mdd_end_ts].idxmax()
-        recovery = dd.loc[mdd_end_ts:]
-        try:
-            recovery_ts = recovery[recovery >= -recovery_thresh].index[0]
-            recovery_period = recovery_ts - mdd_start_ts
-        except:
-            recovery_ts, recovery_period = None, None
-    else:
-        mdd_start_ts = None
-        mdd_end_ts = None
-        recovery_ts = None
-        recovery_period = None
-    # load values
-    dict_mdd = {
-        "mdd": mdd,
-        "mdd_start_ts": mdd_start_ts,
-        "mdd_end_ts": mdd_end_ts,
-        "recovery_ts": recovery_ts,
-        "recovery_period": recovery_period,
-    }
-    return nvs, dict_mdd
+    mdd = df_dd.min()
+    # df_mdd
+    mdd_idx = ["mdd", "mdd_start_ts", "mdd_end_ts", "recovery_ts", "recovery_period"]
+    df_mdd = pd.DataFrame(index=mdd_idx, columns=cols)
+    df_mdd.loc["mdd"] = mdd
+    for c in cols:
+        # mdd key timestamps
+        if mdd[c]:
+            mdd_end_ts_c = df_dd[c].idxmin()
+            mdd_start_ts_c = df_nv.loc[:mdd_end_ts_c, c].idxmax()
+            origin_level_c = df_nv.loc[mdd_start_ts_c, c]
+            recovery_c = df_nv.loc[mdd_end_ts_c:, c]
+            try:
+                recovery_ts_c = recovery_c[recovery_c >= origin_level_c].index[0]
+                recovery_period_c = recovery_ts_c - mdd_start_ts_c
+            except:
+                recovery_ts_c, recovery_period_c = None, None
+        else:
+            mdd_start_ts_c = None
+            mdd_end_ts_c = None
+            recovery_ts_c = None
+            recovery_period_c = None
+        # load values
+        df_mdd.loc["mdd_start_ts", c] = mdd_start_ts_c
+        df_mdd.loc["mdd_end_ts", c] = mdd_end_ts_c
+        df_mdd.loc["recovery_ts", c] = recovery_ts_c
+        df_mdd.loc["recovery_period", c] = recovery_period_c
+    return df_nv, df_mdd
 
 
 class Backtester:
@@ -79,10 +79,10 @@ class Backtester:
         factor: str,
         larger_is_better: bool = True,
         freq: str = "d",
-        cost: float = 0.0002,
+        cost: float = 0.0,
         top_pct: float = 0.1,
         long_only: bool = False,
-        r_f: float = 0.02,
+        r_f: float = 0.0,
     ) -> None:
         """Initialization
 
@@ -98,13 +98,13 @@ class Backtester:
             frequency, by default "d"
         cost : float, optional
             Transaction cost, roughly estimated as the sum of the slippage and the
-            commission, by default 0.0002
-        long_only : bool, optional
-            Can only long stocks, by default False
+            commission, by default 0.0
         top_pct : float, optional
             Invest stocks with factor value in the top percentile, by default 0.1
+        long_only : bool, optional
+            Can only long stocks, by default False
         r_f : float, optional
-            Risk free return, by default 0.02
+            Risk free return, by default 0.0
         """
         if freq not in Backtester.freq_to_days:
             raise Exception("`freq` should be chosen from ['d', 'w', 'm', 'q', 'y']")
@@ -118,10 +118,10 @@ class Backtester:
         self.long_only = long_only
         self.r_f = r_f
         self.ann_fac = 252 / Backtester.freq_to_days[freq]
-        self.df: pd.DataFrame = None  # data for backtesting info
-        self.strat_rets: pd.Series = None  # strategy returns
-        self.strat_nvs: pd.Series = None  # strategy net values
-        self.df_perf: pd.DataFrame = None  # performance of the strategy
+        self.df: pd.DataFrame = None  # backtesting info
+        self.df_ret: pd.DataFrame = None  # return
+        self.df_nv: pd.DataFrame = None  # net value
+        self.df_perf: pd.DataFrame = None  # performance
 
     def _get_pos(self) -> None:
         """Get the position"""
@@ -129,7 +129,7 @@ class Backtester:
         def cs_pos(cs_factor: pd.Series) -> pd.Series:
             """Convert factor to position in one period
 
-            Summation of the long and short positions are both restricted to be 1
+            Summation of the long and short positions are both restricted to be 0.5
 
             Parameters
             ----------
@@ -141,8 +141,6 @@ class Backtester:
             pd.Series
                 Cross-sectional position of stocks (N*1)
             """
-            if not self.larger_is_better:
-                cs_factor *= -1
             l_thresh = cs_factor.quantile(1 - self.top_pct)
             l_cond = cs_factor >= l_thresh
             if l_cond.sum() == 0:
@@ -156,16 +154,25 @@ class Backtester:
             return pd.Series(pos, index=cs_factor.index)
 
         df = self.df.copy()
-        self.df["pos"] = df[self.factor].groupby(level=0).apply(cs_pos)
+        if not self.larger_is_better:
+            df[self.factor] *= -1
+        df["pos"] = df[self.factor].groupby(level=0).apply(cs_pos) / 2
+        self.df = df
 
-    def _get_strat_ret(self):
-        """Get the strategy return"""
+    def _get_ret(self):
+        """Get returns of the strategy and the market"""
         strat_rets = (self.df["pos"] * self.df["ret"]).groupby(level=0).sum()
-        self.strat_rets = strat_rets - np.log(1 + self.cost) / self.ann_fac * 252
-        self.strat_rets.iloc[0] = 0.0  # no trading on the first day
+        strat_rets -= np.log(1 + self.cost) / self.ann_fac * 252
+        num_stock = self.df.index.get_level_values(1).nunique()
+        mkt_rets = self.df["ret"].groupby(level=0).sum() / num_stock
+        self.df_ret = pd.DataFrame()
+        self.df_ret["mkt"] = mkt_rets
+        self.df_ret["strat"] = strat_rets
+        self.df_ret["excess"] = strat_rets - mkt_rets
+        self.df_ret.iloc[0] = 0.0  # no trading on the first day
 
-    def _get_performance(self):
-        """Get the strategy performance
+    def _get_perf(self):
+        """Get performance of the strategy and the market
 
         - "ann_ret": annulized return
         - "ann_vol": annulized volatility
@@ -177,21 +184,20 @@ class Backtester:
         - "sharpe_ratio": Sharpe ratio (ann_ret / ann_vol)
         - "calmar_ratio": Calmar ratio (ann_ret / mdd)
         """
+        df_perf = pd.DataFrame(columns=["mkt", "strat", "excess"])
         # calculate
-        strat_rets = self.strat_rets
-        ann_ret = strat_rets.mean() * self.ann_fac
-        ann_vol = strat_rets.std() * self.ann_fac**0.5
-        self.strat_nvs, dict_mdd = _calc_nv_mdd(strat_rets)
+        df_ret = self.df_ret
+        ann_ret = df_ret.mean() * self.ann_fac
+        ann_vol = df_ret.std() * self.ann_fac**0.5
+        self.df_nv, df_mdd = _calc_nv_mdd(df_ret)
         sharpe_ratio = (ann_ret - self.r_f) / ann_vol
-        calmar_ratio = (ann_ret - self.r_f) / abs(dict_mdd["mdd"])
+        calmar_ratio = (ann_ret - self.r_f) / abs(df_mdd.loc["mdd"])
         # load values
-        df_perf = pd.DataFrame(columns=["performance"])
-        df_perf.loc["ann_ret", "performance"] = ann_ret
-        df_perf.loc["ann_vol", "performance"] = ann_vol
-        for k, v in dict_mdd.items():
-            df_perf.loc[k, "performance"] = v
-        df_perf.loc["sharpe_ratio", "performance"] = sharpe_ratio
-        df_perf.loc["calmar_ratio", "performance"] = calmar_ratio
+        df_perf.loc["ann_ret"] = ann_ret
+        df_perf.loc["ann_vol"] = ann_vol
+        df_perf = pd.concat([df_perf, df_mdd], axis=0)
+        df_perf.loc["sharpe_ratio"] = sharpe_ratio
+        df_perf.loc["calmar_ratio"] = calmar_ratio
         self.df_perf = df_perf
 
     def feed(self, df: pd.DataFrame) -> "Backtester":
@@ -217,8 +223,8 @@ class Backtester:
     def run(self) -> "Backtester":
         """Run the backtest"""
         self._get_pos()
-        self._get_strat_ret()
-        self._get_performance()
+        self._get_ret()
+        self._get_perf()
         return self
 
     def report(self) -> None:
@@ -228,5 +234,6 @@ class Backtester:
         2. Plot the net value curve of the strategy
         """
         print(self.df_perf)
-        plt.plot(self.strat_nvs)
+        plt.plot(self.df_nv, label=self.df_nv.columns)
+        plt.legend()
         plt.show()

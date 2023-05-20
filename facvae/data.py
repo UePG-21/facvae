@@ -13,16 +13,21 @@ class RollingDataset(TensorDataset):
     returns `y` in R^{N}
     """
 
-    def __init__(self, df: pd.DataFrame, window: int) -> None:
+    def __init__(self, df: pd.DataFrame, label_col: str, window: int) -> None:
         """Initialization
 
         Parameters
         ----------
         df : pd.DataFrame
-            Panel data, T_ttl*N*(C+1), with "ret" column as future returns (shifted)
+            Panel data, T_ttl*N*(C+1)
+        label_col : str
+            Name of the label column
         window : int
             Size of rolling window, denoted as `T`
         """
+        df = df.copy()
+        labels = df.pop(label_col)
+        df[label_col] = labels
         self.T_ttl = df.index.get_level_values(0).nunique()
         self.N = df.index.get_level_values(1).nunique()
         L, self.C = df.shape
