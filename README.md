@@ -68,26 +68,30 @@ As an asset pricing model in economics and finance, factor model has been widely
 `train_valid_test_split()` splits the full dataset into training, validation, and testing dataset.
 `change_freq()` changes the frequency of the panel data.
 `shift_ret()` shifts returns to the previous period then drop NaN.
+`assign_label()` assigns labels based on different quantiles of the returns
 
 ### 3.3. pipeline.py
 `train_model()`, `validate_model()`, and `test_model()` are three stages of the pipeline of using `FactorVAE`.
 `loss_func_vae()` gets the loss value of the model.
 `gaussian_kld()`: calculate KL divergence of two multivariate independent Gaussian distributions.
 
-### 3.4. feature_extractor.py
+### 3.4. backtesting.py
+`Backtester` backtests cross-sectinal strategies, by the following procedure: 1) `factor` $\rightarrow$ `pos`; 2) `pos` + `ret` $\rightarrow$ `strat_ret`; 3) `strat_ret` $\rightarrow$ `nv`.
+
+### 3.5. feature_extractor.py
 `FeatureExtractor` extracts stocks hidden features `e` from the historical sequential characteristics `x`.
 
-### 3.5. factor_encoder.py
+### 3.6. factor_encoder.py
 `FactorEncoder` extracts posterior factors `z_post`, a random vector following the independent Gaussian distribution, which can be described by the mean `mu_post` and the standard deviation `sigma_post`, from hidden features `e` and stock returns `y`.
 `PortfolioLayer` dynamically re-weights the portfolios on the basis of stock hidden features `e`.
 `MappingLayer` maps `y_p` as the portfolio returns to the distribution of posterior factor returns `z_post`.
 
-### 3.6. factor_decoder.py
+### 3.7. factor_decoder.py
 `FactorDecoder` calculates predicted stock returns `y_hat`, a random vector following the Gaussian distribution, which can be described by the mean `mu_y` and the covariance matrix `Sigma_y`, from distribution parameters of factor returns `z` (could be `z_post` or `z_prior`) and hidden features `e`.
 `AlphaLayer` outputs idiosyncratic returns `alpha` from the hidden features `e`.
 `BetaLayer` calculates factor exposures `beta` from hidden feautres `e`.
 
-### 3.7. factor_predictor.py
+### 3.8. factor_predictor.py
 `FactorPredictor` extracts prior factor returns `z_prior`, a random vector following the independent Gaussian distribution, which can be described by the mean `mu_prior` and the standard deviation `sigma_prior`, from hidden features `e`.
 `MultiheadGlobalAttention` implements a specific type of multi-head global attention.
 

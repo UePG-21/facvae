@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.nn.utils.clip_grad import clip_grad_value_
 from torch.utils.data import DataLoader
+import torch.optim as optim
 
 
 def loss_func_vae(
@@ -43,10 +44,13 @@ def loss_func_vae(
     torch.Tensor
         Loss values, B, denoted as `loss`
     """
-    dist_y = MultivariateNormal(mu_y, Sigma_y)
-    ll = dist_y.log_prob(y)
-    # ll = -((y - mu_y)**2).sum(-1)
-    kld = gaussian_kld(mu_post, mu_prior, sigma_post, sigma_prior)
+    # dist_y = MultivariateNormal(mu_y, Sigma_y)
+    # ll = dist_y.log_prob(y)
+    # diag_Sigma_y = torch.diagonal(Sigma_y, dim1=-2, dim2=-1)
+    # y_hat = torch.randn(diag_Sigma_y.shape, device="cuda:0") * diag_Sigma_y + mu_y
+    ll = -((y - mu_y)**2).sum(-1)
+    # kld = gaussian_kld(mu_post, mu_prior, sigma_post, sigma_prior)
+    kld = 0
     loss = -ll + lmd * kld
     return loss
 
@@ -90,7 +94,7 @@ def train_model(
     epochs: int,
     lmd: float = 1.0,
     max_grad: float | None = None,
-    opt_family: torch.optim.Optimizer = torch.optim.Adam,
+    optim_alog: optim.Optimizer = optim.Adam,
     verbose_freq: int = 10,
 ) -> None:
     """Train the model
@@ -109,8 +113,8 @@ def train_model(
         Lambda as regularization parameter in loss function, by default 1.0
     max_grad : float, optional
         Max absolute value of the gradients for gradient clipping, by default None
-    optimizer_family : torch.optim.Optimizer, optional
-        Optimizer family, by default torch.optim.Adam
+    optim_alog : torch.optim.Optimizer, optional
+        Optimization algorithm, by default optim.Optimizer
     verbose_freq : int, optional
         Frequncy to report the loss, by default 10
     """
@@ -118,37 +122,18 @@ def train_model(
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
     # train
-    optimizer: torch.optim.Optimizer = opt_family(model.parameters(), lr=learning_rate)
+    optimizer: optim.Optimizer = optim_alog(model.parameters(), lr=learning_rate)
     for e in range(epochs):
         print("=" * 16, f"Epoch {e}", "=" * 16)
         for b, (x, y) in enumerate(dataloader):
-            optimizer.zero_grad()
             # calculate loss
             out: tuple[torch.Tensor] = model(x, y)
-            print(out[0][0])
             loss: torch.Tensor = loss_func_vae(y, *out, lmd).mean(-1)
+            optimizer.zero_grad()
             loss.backward()
-
-            # total_norm = 0.0
-            # for p in model.parameters():
-            #     param_norm = p.grad.data.norm(2)
-            #     total_norm += param_norm.item() ** 2
-            #     total_norm = total_norm ** (1.0 / 2)
-            # print("before", total_norm)
-
             # clip gradient
-            if loss.item() > 1e9:
-                optimizer.zero_grad()  # avoid getting inf gradients
-            elif max_grad is not None:
+            if max_grad is not None:
                 clip_grad_value_(model.parameters(), max_grad)
-
-            # total_norm = 0.0
-            # for p in model.parameters():
-            #     param_norm = p.grad.data.norm(2)
-            #     total_norm += param_norm.item() ** 2
-            #     total_norm = total_norm ** (1.0 / 2)
-            # print("after", total_norm)
-
             # update parameters
             optimizer.step()
             # report loss
@@ -176,7 +161,7 @@ def test_model(
     dataloader : DataLoader
         Testing dataloader
     loss_func : Callable, optional
-        Loss function, by default loss_func
+        Loss function, by default loss_func_vae
     lmd : float, optional
         Lambda as regularization parameter in loss function, by default 1.0
 
@@ -189,9 +174,7 @@ def test_model(
         # to cuda
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         model.to(device)
-        loss = torch.Tensor([0.0]).to(device)
         # calculate
-        for x, y in dataloader:
-            out: tuple[torch.Tensor] = model(x, y)
-            loss += loss_func(y, *out, lmd).mean(-1)
-    return loss / len(dataloader)
+        x, y = next(iter(dataloader))
+        loss = loss_func(y, *model(x, y), lmd)
+        return loss.mean(-1)
