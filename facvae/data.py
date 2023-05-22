@@ -273,8 +273,9 @@ def get_dataloaders(
     tuple[DataLoader]
         DataLoader
             Training dataloader, denoted as `ds_train`
-        DataLoader
-            Validation dataloader, denoted as `ds_valid`
+        DataLoader | None
+            Validation dataloader, set to be None if the partition percentage of
+            validation is 0, denoted as `ds_valid`
         DataLoader
             Testing dataloader, denoted as `ds_test`
     """

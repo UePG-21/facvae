@@ -123,9 +123,9 @@ class Backtester:
         - "ann_ret": annulized return
         - "ann_vol": annulized volatility
         - "mdd": maximum drawdown
-        - "mdd_start_ts": start timestamp of mdd,
-        - "mdd_end_ts": end timestamp of mdd,
-        - "recovery_ts": timestamp of getting recovered from mdd,
+        - "mdd_start_ts": start timestamp of mdd
+        - "mdd_end_ts": end timestamp of mdd
+        - "recovery_ts": timestamp of getting recovered from mdd
         - "recovery_period": time it take to recover from the end of mdd
         - "sharpe_ratio": Sharpe ratio (ann_ret / ann_vol)
         - "calmar_ratio": Calmar ratio (ann_ret / mdd)
