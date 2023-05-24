@@ -117,8 +117,6 @@ class FactorVAE(nn.Module):
         -------
         tuple[torch.Tensor]
             torch.Tensor
-                Predicted stock returns, B*N, denoted as `y_hat`
-            torch.Tensor
                 Predicted mean vector of stock returns, B*N, denoted as `mu_y`
             torch.Tensor
                 Predicted cov matrix of stock returns, B*N*N, denoted as `Sigma_y`

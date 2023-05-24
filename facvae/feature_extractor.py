@@ -26,7 +26,7 @@ class FeatureExtractor(nn.Module):
         super(FeatureExtractor, self).__init__()
         self.C, self.H = C, H
         self.proj_layer = nn.Sequential(nn.Linear(C, h_proj_size), nn.LeakyReLU())
-        self.gru = nn.GRU(input_size=h_proj_size, hidden_size=H)
+        self.gru = nn.GRU(input_size=h_proj_size, hidden_size=H, batch_first=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Get hidden features
@@ -42,8 +42,8 @@ class FeatureExtractor(nn.Module):
             Hidden features, B*N*H, denoted as `e`
         """
         N, T = x.shape[1:3]  # N and T can be arbitrary
-        x = torch.permute(x, (1, 0, 2, 3)).reshape((T, -1, self.C))
+        x = x.reshape((-1, T, self.C))
         h_proj = self.proj_layer(x)
-        _, hidden = self.gru(h_proj)
-        e = hidden.view((-1, N, self.H))
+        _, h_T = self.gru(h_proj)
+        e = h_T.reshape(-1, N, self.H)
         return e

@@ -64,7 +64,7 @@ As an asset pricing model in economics and finance, factor model has been widely
 
 ### 3.2. data.py
 `get_dataloaders()` gets training, validation, and testing dataloader.
-`RollingDataset` yields characteristics `x` in R^{N*T*C}, and future stock returns `y` in R^{N} in each iteration.
+`RollingDataset` yields characteristics `x` in R^{N\*T\*C}, and future stock returns `y` in R^{N} in each iteration.
 `train_valid_test_split()` splits the full dataset into training, validation, and testing dataset.
 `change_freq()` changes the frequency of the panel data.
 `shift_ret()` shifts returns to the previous period then drop NaN.

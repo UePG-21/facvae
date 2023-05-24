@@ -15,7 +15,8 @@ print("after", total_norm)
 """
 
 if __name__ == "__main__":
-    import torch
+    import numpy as np
+    import pandas as pd
     # directories
     dir_main = "E:/Others/Programming/py_vscode/projects/signal_mixing/"
     dir_code = dir_main + "code/"
@@ -24,21 +25,21 @@ if __name__ == "__main__":
     dir_result = dir_main + "result/"
 
     # constants
-    E = 10
+    E = 100
     B = 16
     N = 74
     T = 5
-    C = 28
+    C = 1
     H = 64
     M = 32
     K = 32
     h_prior_size = 16
     h_alpha_size = 16
     h_prior_size = 16
-    partition = [0.75, 0.0, 0.25]
-    lr = 0.002
+    partition = [0.72, 0.0, 0.25]
+    lr = 1e-3
     lmd = 0.0
-    max_grad = None
+    max_grad = 1
     freq = "d"
     quantiles = [0.2, 0.4]
     start_date = "2015-01-01"
@@ -55,6 +56,9 @@ if __name__ == "__main__":
     df = change_freq(df, freq)
     df = shift_ret(df)
     # df, rets = assign_label(df, quantiles)
+    df = pd.DataFrame(np.random.randn(*df.shape), index=df.index)
+    df.rename(columns={df.shape[1]-1:"ret"}, inplace=True)
+    print(df)
     dl_train, dl_valid, dl_test = get_dataloaders(df, "ret", T, B, partition)
 
     # train
@@ -63,6 +67,9 @@ if __name__ == "__main__":
     # test
     loss = test_model(fv, dl_test)
     print("out-of-sample loss:", loss)
+
+    # random
+
 
     # predict
     x, y = next(iter(dl_train))

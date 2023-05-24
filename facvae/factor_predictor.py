@@ -25,8 +25,8 @@ class FactorPredictor(nn.Module):
         super(FactorPredictor, self).__init__()
         self.attention = MultiheadGlobalAttention(H, K, H)
         self.h_layer = nn.Linear(H, h_prior_size)
-        self.mu_layer = nn.Linear(h_prior_size, 1)
-        self.sigma_layer = nn.Sequential(nn.Linear(h_prior_size, 1), nn.Softplus())
+        self.mean_layer = nn.Linear(h_prior_size, 1)
+        self.std_layer = nn.Sequential(nn.Linear(h_prior_size, 1), nn.Softplus())
 
     def forward(self, e: torch.Tensor) -> tuple[torch.Tensor]:
         """Get distribution parameters of prior factor returns
@@ -46,8 +46,8 @@ class FactorPredictor(nn.Module):
         """
         h_att = self.attention(e)
         h_prior = self.h_layer(h_att)
-        mu_prior = self.mu_layer(h_prior).squeeze(-1)
-        sigma_prior = self.sigma_layer(h_prior).squeeze(-1)
+        mu_prior = self.mean_layer(h_prior).squeeze(-1)
+        sigma_prior = self.std_layer(h_prior).squeeze(-1)
         return mu_prior, sigma_prior
 
 

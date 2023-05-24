@@ -78,7 +78,7 @@ def gaussian_kld(
     """
     kld_n = (
         torch.log(sigma2 / sigma1)
-        + (sigma1**2 + (mu1 - mu2) ** 2) / sigma2**2 / 2
+        + (sigma1**2 + (mu1 - mu2) ** 2) / (2 * sigma2**2)
         - 0.5
     )
     return kld_n.sum(-1)
@@ -114,7 +114,7 @@ def train_model(
     max_grad : float, optional
         Max absolute value of the gradients for gradient clipping, by default None
     optim_alog : torch.optim.Optimizer, optional
-        Optimization algorithm, by default optim.Optimizer
+        Optimization algorithm, by default optim.Adam
     verbose_freq : int, optional
         Frequncy to report the loss, by default 10
     """
@@ -129,6 +129,7 @@ def train_model(
             # calculate loss
             out: tuple[torch.Tensor] = model(x, y)
             loss: torch.Tensor = loss_func_vae(y, *out, lmd).mean(-1)
+            # back propagate
             optimizer.zero_grad()
             loss.backward()
             # clip gradient
@@ -141,11 +142,13 @@ def train_model(
                 print(f"batch: {b}, loss: {loss.item()}")
 
 
+@torch.no_grad()
 def validate_model():
     # TODO: to be finished
     pass
 
 
+@torch.no_grad()
 def test_model(
     model: nn.Module,
     dataloader: DataLoader,
@@ -170,11 +173,10 @@ def test_model(
     torch.Tensor
         Loss value, denoted as `loss`
     """
-    with torch.no_grad():
-        # to cuda
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        model.to(device)
-        # calculate
-        x, y = next(iter(dataloader))
-        loss = loss_func(y, *model(x, y), lmd)
-        return loss.mean(-1)
+    # to cuda
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    # calculate
+    x, y = next(iter(dataloader))
+    loss = loss_func(y, *model(x, y), lmd)
+    return loss.mean(-1)

@@ -79,8 +79,8 @@ class AlphaLayer(nn.Module):
         """
         super(AlphaLayer, self).__init__()
         self.h_layer = nn.Sequential(nn.Linear(H, h_alpha_size), nn.LeakyReLU())
-        self.mu_layer = nn.Linear(h_alpha_size, 1)
-        self.sigma_layer = nn.Sequential(nn.Linear(h_alpha_size, 1), nn.Softplus())
+        self.mean_layer = nn.Linear(h_alpha_size, 1)
+        self.std_layer = nn.Sequential(nn.Linear(h_alpha_size, 1), nn.Softplus())
 
     def forward(self, e: torch.Tensor) -> tuple[torch.Tensor]:
         """Get distribution parameters of idiosyncratic returns
@@ -94,13 +94,13 @@ class AlphaLayer(nn.Module):
         -------
         tuple[torch.Tensor]
             torch.Tensor
-                means of idiosyncratic returns, B*N, denoted as `mu_alpha`
+                Means of idiosyncratic returns, B*N, denoted as `mu_alpha`
             torch.Tensor
-                stds of idiosyncratic returns, B*N, denoted as `sigma_alpha`
+                Stds of idiosyncratic returns, B*N, denoted as `sigma_alpha`
         """
         h_alpha = self.h_layer(e)
-        mu_alpha = self.mu_layer(h_alpha).squeeze(-1)
-        sigma_alpha = self.sigma_layer(h_alpha).squeeze(-1)
+        mu_alpha = self.mean_layer(h_alpha).squeeze(-1)
+        sigma_alpha = self.std_layer(h_alpha).squeeze(-1)
         return mu_alpha, sigma_alpha
 
 
