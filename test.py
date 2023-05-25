@@ -1,19 +1,8 @@
 import pandas as pd
-
 from facvae import FactorVAE
 from facvae.backtesting import Backtester
 from facvae.data import change_freq, get_dataloaders, shift_ret
 from facvae.pipeline import test_model, train_model
-
-"""
-total_norm = 0.0
-for p in model.parameters():
-    param_norm = p.grad.data.norm(2)
-    total_norm += param_norm.item() ** 2
-    total_norm = total_norm ** (1.0 / 2)
-print("after", total_norm)
-
-"""
 
 if __name__ == "__main__":
     # directories
@@ -54,37 +43,19 @@ if __name__ == "__main__":
     df = df.loc[start_date:end_date]
     df = change_freq(df, freq)
     df = shift_ret(df)
-    # df, rets = assign_label(df, quantiles)
     print(df)
     dl_train, dl_valid, dl_test = get_dataloaders(df, "ret", T, B, partition)
 
     # train
-    train_model(fv, dl_train, lr, E, lmd=lmd, max_grad=max_grad)
+    train_model(fv, dl_train, lr, E, lmd, max_grad)
 
     # test
     loss = test_model(fv, dl_test)
     print("out-of-sample loss:", loss)
 
     # predict
-    x, y = next(iter(dl_train))
-    mu_y, Sigma_y, _, _, _, _ = fv(x, y)
-
-    # print("Sigma_y")
-    # print(Sigma_y)
-    print("mu_y")
-    print(mu_y)
-    print("y")
-    print(y)
-
     x, y = next(iter(dl_test))
     mu_y, Sigma_y = fv.predict(x)
-
-    # print("Sigma_y")
-    # print(Sigma_y)
-    print("mu_y")
-    print(mu_y)
-    print("y")
-    print(y)
 
     # backtest
     len_test = next(iter(dl_test))[1].shape[0]

@@ -22,7 +22,7 @@ Coding convention:
     are used to denote scalars (constant)
 """
 
-__version__ = "0.0.1"
+__version__ = "0.1.1"
 
 __all__ = ["data", "pipeline", "backtesting"]
 
