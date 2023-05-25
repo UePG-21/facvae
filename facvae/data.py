@@ -27,7 +27,7 @@ class RollingDataset(TensorDataset):
         # set label to be the last column
         df = df.copy()
         labels = df.pop(label_col)
-        df[label_col] = labels
+        df = pd.concat([df, labels], axis=1)
         # get attributes
         self.T_ttl = df.index.get_level_values(0).nunique()
         self.N = df.index.get_level_values(1).nunique()
