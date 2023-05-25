@@ -30,14 +30,14 @@ As an asset pricing model in economics and finance, factor model has been widely
 
 ## 2. Notation
 ### 2.1. Scalar (constant)
-- E: size of epochs (arbitrary)
-- B: size of batches (arbitrary)
-- N: size of stocks (arbitrary)
-- T: size of time periods (arbitrary)
-- C: size of characteristics
-- H: size of hidden features
-- M: size of portfolios
-- K: size of factors
+- `E`: size of epochs (arbitrary)
+- `B`: size of batches (arbitrary)
+- `N`: size of stocks (arbitrary)
+- `T`: size of time periods (arbitrary)
+- `C`: size of characteristics
+- `H`: size of hidden features
+- `M`: size of portfolios
+- `K`: size of factors
 ### 2.2. Tensor (variable)
 - `x`: characteristics, B\*N\*T\*C
 - `y`: stock returns, B\*N
