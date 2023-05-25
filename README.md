@@ -56,6 +56,12 @@ As an asset pricing model in economics and finance, factor model has been widely
 - `sigma_alpha`: std vector of `alpha`, B\*N
 - `mu_y`: mean vector of `y_hat`, B\*N
 - `Sigma_y`: cov matrix of `y_hat`, B\*N\*N
+### 2.3. Distribution
+- $p_{\theta}(y|x)$: true label, likelihood
+- $q_{\phi}(z|x,y)$: encoder output, posterior distribution
+- $q_{\phi}(z|x)$: predictor output, prior distribution
+- $p_{\theta}(y|x,z)$: decoder output, conditional likelihood
+- $f_{\phi,\theta}(y|x)$: predicted label, predicted likelihood
 
 
 ## 3. Module

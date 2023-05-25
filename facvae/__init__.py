@@ -12,9 +12,9 @@ Coding convention:
     When we mention panel data, it is of type pd.DataFrame and should satisfy the
     following conditions:
     - having MultiIndex with time periods and samples in order
-    - having time period index with value of the type pd.Timestamp
+    - having time period index whose value is of type pd.Timestamp
     - sorted by time period index with sample order fixed in each time period
-    - having "ret" column if and only if "ret" means return and it's the last column
+    - having "ret" column if and only if "ret" means return and it is the last column
     - balanced if not otherwise specified
     - having no missing value if not otherwise specified
 2) Letter case
@@ -46,13 +46,13 @@ class FactorVAE(nn.Module):
 
     Notation
     - Scalar (constant)
-        - B: size of batch (arbitrary)
-        - N: size of stocks (arbitrary)
-        - T: size of time periods (arbitrary)
-        - C: size of characteristics
-        - H: size of hidden features
-        - M: size of portfolios
-        - K: size of factors
+        - `B`: size of batch (arbitrary)
+        - `N`: size of stocks (arbitrary)
+        - `T`: size of time periods (arbitrary)
+        - `C`: size of characteristics
+        - `H`: size of hidden features
+        - `M`: size of portfolios
+        - `K`: size of factors
     - Tensor (variable)
         - `x`: characteristics, B*N*T*C
         - `y`: stock returns, B*N
@@ -66,6 +66,12 @@ class FactorVAE(nn.Module):
         - `sigma_prior`: std vector of `z_prior`, B*K
         - `mu_y`: mean vector of `y_hat`, B*N
         - `Sigma_y`: cov matrix of `y_hat`, B*N*N
+    - Distribution
+        - p_{theta}(y|x): true label, likelihood
+        - q_{phi}(z|x,y): encoder output, posterior distribution
+        - q_{phi}(z|x): predictor output, prior distribution
+        - p_{theta}(y|x,z): decoder output, conditional likelihood
+        - f_{phi,theta}(y|x): predicted label, predicted likelihood
     """
 
     def __init__(
