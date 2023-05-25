@@ -44,13 +44,12 @@ def loss_func_vae(
     torch.Tensor
         Loss values, B, denoted as `loss`
     """
-    # dist_y = MultivariateNormal(mu_y, Sigma_y)
-    # ll = dist_y.log_prob(y)
+    dist_y = MultivariateNormal(mu_y, Sigma_y)
+    ll = dist_y.log_prob(y)
     # diag_Sigma_y = torch.diagonal(Sigma_y, dim1=-2, dim2=-1)
     # y_hat = torch.randn(diag_Sigma_y.shape, device="cuda:0") * diag_Sigma_y + mu_y
-    ll = -((y - mu_y)**2).sum(-1)
-    # kld = gaussian_kld(mu_post, mu_prior, sigma_post, sigma_prior)
-    kld = 0
+    # ll = -((y - mu_y)**2).sum(-1)
+    kld = gaussian_kld(mu_post, mu_prior, sigma_post, sigma_prior)
     loss = -ll + lmd * kld
     return loss
 

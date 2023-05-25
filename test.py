@@ -25,21 +25,21 @@ if __name__ == "__main__":
     dir_result = dir_main + "result/"
 
     # constants
-    E = 100
+    E = 10
     B = 16
     N = 74
-    T = 5
-    C = 1
-    H = 64
-    M = 32
-    K = 32
-    h_prior_size = 16
-    h_alpha_size = 16
-    h_prior_size = 16
-    partition = [0.72, 0.0, 0.25]
-    lr = 1e-3
-    lmd = 0.0
-    max_grad = 1
+    T = 20
+    C = 283
+    H = 32
+    M = 24
+    K = 8
+    h_prior_size = 32
+    h_alpha_size = 32
+    h_prior_size = 32
+    partition = [0.9, 0.0, 0.1]
+    lr = 1e-4
+    lmd = 1
+    max_grad = None
     freq = "d"
     quantiles = [0.2, 0.4]
     start_date = "2015-01-01"
@@ -50,14 +50,12 @@ if __name__ == "__main__":
     fv = FactorVAE(C, H, M, K, h_prior_size, h_alpha_size, h_prior_size).to("cuda")
 
     # data
-    df = pd.read_pickle(dir_data + "df_l1_comb.pickle").iloc[:, -C-1:]
+    df = pd.read_pickle(dir_data + "df_l1_comb.pickle")
     df.sort_index(level=(0, 1), inplace=True)
     df = df.loc[start_date:end_date]
     df = change_freq(df, freq)
     df = shift_ret(df)
     # df, rets = assign_label(df, quantiles)
-    df = pd.DataFrame(np.random.randn(*df.shape), index=df.index)
-    df.rename(columns={df.shape[1]-1:"ret"}, inplace=True)
     print(df)
     dl_train, dl_valid, dl_test = get_dataloaders(df, "ret", T, B, partition)
 
@@ -67,9 +65,6 @@ if __name__ == "__main__":
     # test
     loss = test_model(fv, dl_test)
     print("out-of-sample loss:", loss)
-
-    # random
-
 
     # predict
     x, y = next(iter(dl_train))

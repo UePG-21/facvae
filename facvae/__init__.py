@@ -135,6 +135,7 @@ class FactorVAE(nn.Module):
         mu_prior, sigma_prior = self.predictor(e)
         return mu_y, Sigma_y, mu_post, sigma_post, mu_prior, sigma_prior
 
+    @torch.no_grad()
     def predict(self, x: torch.Tensor) -> tuple[torch.Tensor]:
         """Predict stock returns from stock characteristics
 
@@ -151,8 +152,7 @@ class FactorVAE(nn.Module):
             torch.Tensor
                 Predicted covariance matrix of stock returns, B*N, denoted as `Sigma_y`
         """
-        with torch.no_grad():
-            e = self.extractor(x)
-            mu_prior, sigma_prior = self.predictor(e)
-            mu_y, Sigma_y = self.decoder(e, mu_prior, sigma_prior)
+        e = self.extractor(x)
+        mu_prior, sigma_prior = self.predictor(e)
+        mu_y, Sigma_y = self.decoder(e, mu_prior, sigma_prior)
         return mu_y, Sigma_y

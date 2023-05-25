@@ -57,7 +57,7 @@ class MultiheadGlobalAttention(nn.Module):
     From e in R^{token_size(N)*embed_dim} to h in R^{num_heads*value_dim}:
     k_n = W_key @ e_n, v_n = W_value @ e_n
     s_n = q @ k_n^T / ||q||_2 * ||k_n||_2
-    a_n = s_n / sum_{m=1}^{N}{s_m}
+    a_n = max(0, s_n) / sum_{m=1}^{N}{max(0, s_m)}
     h = sum_{n=1}^{N}{a_n * v_n}
     """
 
@@ -78,6 +78,7 @@ class MultiheadGlobalAttention(nn.Module):
         self.q = nn.Parameter(torch.randn(num_heads, embed_dim))
         self.k_layer = nn.Linear(embed_dim, embed_dim, bias=False)
         self.v_layer = nn.Linear(embed_dim, value_dim, bias=False)
+        self.norm_layer = nn.Sequential(nn.ReLU(), nn.Softmax(dim=1))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Get multi-head attention values
@@ -85,18 +86,22 @@ class MultiheadGlobalAttention(nn.Module):
         Parameters
         ----------
         x : torch.Tensor
-            Sequence of embedding vector, B*N*embed_dim, N can be arbitrary
+            Sequence of embedding vector, B*token_size*embed_dim
 
         Returns
         -------
         torch.Tensor
-            Multi-head attention values, num_heads*value_dim, denoted as `h`
+            Multi-head attention values, B*num_heads*value_dim, denoted as `h`
         """
         if x.shape[-1] != self.embed_dim:
             raise Exception("input shape incorrect")
         k, v = self.k_layer(x), self.v_layer(x)
         q_norm, k_norm = torch.norm(self.q, dim=-1), torch.norm(k, dim=-1)
         s = torch.matmul(k, self.q.T) / q_norm / k_norm.unsqueeze(-1)
-        a = s / torch.sum(s, dim=-1).unsqueeze(-1)  # B*num_heads*token_size
-        h = torch.einsum("bnt, bnv -> btv", a, v)
+        a = self.norm_layer(s)  # B*token_size*num_heads
+        # s = self.relu(s)  # max(0, s)
+        # a = s / s.sum(dim=-1).unsqueeze(-1)  # B*token_size*num_heads
+        h = torch.einsum("btn, bte -> bne", a, v)
+        # if torch.isnan(h).any() or torch.isinf(h).any():
+        #     return torch.zeros_like()
         return h
