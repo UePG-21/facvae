@@ -173,16 +173,22 @@ class Backtester:
         self._get_perf()
         return self
 
-    def report(self) -> None:
+    def report(self, plot: bool = True) -> None:
         """Report the backtesting result
 
         1. Print the performance of the strategy
         2. Plot the net value curve of the strategy
+
+        Parameters
+        ----------
+        plot : bool, optional
+            Plot the net value curve or not, by default True
         """
         print(self.df_perf)
-        plt.plot(self.df_nv, label=self.df_nv.columns)
-        plt.legend()
-        plt.show()
+        if plot:
+            plt.plot(self.df_nv, label=self.df_nv.columns)
+            plt.legend()
+            plt.show()
 
 
 def _calc_nv_mdd(df_ret: pd.DataFrame) -> tuple[pd.DataFrame]:
