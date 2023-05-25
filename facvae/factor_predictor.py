@@ -99,9 +99,5 @@ class MultiheadGlobalAttention(nn.Module):
         q_norm, k_norm = torch.norm(self.q, dim=-1), torch.norm(k, dim=-1)
         s = torch.matmul(k, self.q.T) / q_norm / k_norm.unsqueeze(-1)
         a = self.norm_layer(s)  # B*token_size*num_heads
-        # s = self.relu(s)  # max(0, s)
-        # a = s / s.sum(dim=-1).unsqueeze(-1)  # B*token_size*num_heads
         h = torch.einsum("btn, bte -> bne", a, v)
-        # if torch.isnan(h).any() or torch.isinf(h).any():
-        #     return torch.zeros_like()
         return h

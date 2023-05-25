@@ -5,7 +5,6 @@ import torch
 from torch.utils.data import DataLoader, Subset, TensorDataset
 
 
-
 class RollingDataset(TensorDataset):
     """Rolling dataset
 

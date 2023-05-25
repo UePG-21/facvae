@@ -27,10 +27,34 @@ class FactorDecoder(nn.Module):
         self.alpha_layer = AlphaLayer(H, h_alpha_size)
         self.beta_layer = BetaLayer(H, K)
 
-    def forward(
+    def forward(self, e: torch.Tensor, z: torch.Tensor) -> tuple[torch.Tensor]:
+        """Get distribution parameters of predicted stock returns (with sampled `z`)
+
+        Parameters
+        ----------
+        e : torch.Tensor
+            Hidden features, B*N*H
+        z : torch.Tensor
+            Factor returns (could be `z_post` or `z_prior`), B*K
+
+        Returns
+        -------
+        tuple[torch.Tensor]
+            torch.Tensor
+                Predicted mean vector of stock returns, B*N, denoted as `mu_y`
+            torch.Tensor
+                Predicted std vector of stock returns, B*N, denoted as `sigma_y`
+        """
+        mu_alpha, sigma_alpha = self.alpha_layer(e)
+        beta = self.beta_layer(e)
+        mu_y = mu_alpha + torch.einsum("bnk, bk -> bn", beta, z)
+        sigma_y = sigma_alpha
+        return mu_y, sigma_y
+
+    def predict(
         self, e: torch.Tensor, mu_z: torch.Tensor, sigma_z: torch.Tensor
     ) -> tuple[torch.Tensor]:
-        """Get distribution parameters of predicted stock returns
+        """Get distribution parameters of predicted stock returns (without sampled `z`)
 
         Parameters
         ----------

@@ -103,6 +103,24 @@ class FactorVAE(nn.Module):
         self.decoder = FactorDecoder(H, K, h_alpha_size)
         self.predictor = FactorPredictor(H, K, h_prior_size)
 
+    def reparameterize(self, mu: torch.Tensor, sigma: torch.Tensor) -> torch.Tensor:
+        """Reparameterize the sampling layer
+
+        Parameters
+        ----------
+        mu : torch.Tensor
+            Means, B*K
+        sigma : torch.Tensor
+            Stds, B*K
+
+        Returns
+        -------
+        torch.Tensor
+            Multivariable sampled from N(mu, diag(sigma))
+        """
+        epsilon = torch.randn_like(sigma)
+        return mu + sigma * epsilon
+
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> tuple[torch.Tensor]:
         """Get distribution parameters of `y_hat`, `z_post`, and `z_prior`
 
@@ -119,7 +137,7 @@ class FactorVAE(nn.Module):
             torch.Tensor
                 Predicted mean vector of stock returns, B*N, denoted as `mu_y`
             torch.Tensor
-                Predicted cov matrix of stock returns, B*N*N, denoted as `Sigma_y`
+                Predicted std vector of stock returns, B*N, denoted as `sigma_y`
             torch.Tensor
                 Means of posterior factor returns, B*K, denoted as `mu_post`
             torch.Tensor
@@ -131,9 +149,10 @@ class FactorVAE(nn.Module):
         """
         e = self.extractor(x)
         mu_post, sigma_post = self.encoder(e, y)
-        mu_y, Sigma_y = self.decoder(e, mu_post, sigma_post)
+        z_post = self.reparameterize(mu_post, sigma_post)
+        mu_y, sigma_y = self.decoder(e, z_post)
         mu_prior, sigma_prior = self.predictor(e)
-        return mu_y, Sigma_y, mu_post, sigma_post, mu_prior, sigma_prior
+        return mu_y, sigma_y, mu_post, sigma_post, mu_prior, sigma_prior
 
     @torch.no_grad()
     def predict(self, x: torch.Tensor) -> tuple[torch.Tensor]:
@@ -150,9 +169,9 @@ class FactorVAE(nn.Module):
             torch.Tensor
                 Predicted mean vector of stock returns, B*N, denoted as `mu_y`
             torch.Tensor
-                Predicted covariance matrix of stock returns, B*N, denoted as `Sigma_y`
+                Predicted cov matrix of stock returns, B*N*N, denoted as `Sigma_y`
         """
         e = self.extractor(x)
         mu_prior, sigma_prior = self.predictor(e)
-        mu_y, Sigma_y = self.decoder(e, mu_prior, sigma_prior)
+        mu_y, Sigma_y = self.decoder.predict(e, mu_prior, sigma_prior)
         return mu_y, Sigma_y

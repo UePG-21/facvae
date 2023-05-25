@@ -97,49 +97,67 @@ As an asset pricing model in economics and finance, factor model has been widely
 
 
 ## 4. Example
-*To be continued*
 ```Python
 import pandas as pd
+
 from facvae import FactorVAE
-from facvae.data import get_dataloaders
-from facvae.pipeline import train_model, valide_model, test_model
+from facvae.backtesting import Backtester
+from facvae.data import change_freq, get_dataloaders, shift_ret
+from facvae.pipeline import test_model, train_model
 
 
 if __name__ == "__main__":
     # constants
-    E = 25
-    B = 16
+    E = 15
+    B = 8
     N = 74
     T = 20
-    C = 28
-    H = 10
-    M = 32
-    K = 8
-    h_prior_size = 16
-    h_alpha_size = 16
-    h_prior_size = 16
-    partition = [0.7, 0.2, 0.1]
-    lr = 0.0001
+    C = 283
+    H = 64
+    M = 24
+    K = 16
+    h_prior_size = 128
+    h_alpha_size = 32
+    h_prior_size = 32
+    partition = [0.8, 0.0, 0.2]
+    lr = 1e-4
+    lmd = 1
+    max_grad = None
+    freq = "d"
+    start_date = "2015-01-01"
+    end_date = "2023-01-01"
+    top_pct = 0.1
 
     # model
-    fv = FactorVAE(C, H, M, K, h_prior_size, h_alpha_size, h_prior_size)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    fv = FactorVAE(C, H, M, K, h_prior_size, h_alpha_size, h_prior_size).to(device)
 
     # data
     df = pd.read_pickle("df.pickle")
-    dl_train, dl_valid, dl_test = get_dataloaders(df, T, B, partition)
+    df = df.loc[start_date:end_date]
+    df = change_freq(df, freq)
+    df = shift_ret(df)
+
+    dl_train, dl_valid, dl_test = get_dataloaders(df, "ret", T, B, partition)
 
     # train
-    train_model(fv, dl_train, lr, E, 1.0)
+    train_model(fv, dl_train, lr, E, lmd, max_grad)
 
     # test
     loss = test_model(fv, dl_test)
+    print("out-of-sample loss:", loss)
 
     # predict
     x, y = next(iter(dl_test))
     mu_y, Sigma_y = fv.predict(x)
-    
-    print(Sigma_y)
-    print(mu_y)
-    print(y)
-    print(((mu_y - y) ** 2).mean())
+
+    # backtest
+    len_test = next(iter(dl_test))[1].shape[0]
+    idx = pd.IndexSlice[df.index.get_level_values(0).unique()[-len_test:], :]
+    df_test = df.loc[idx]
+
+    df_test["factor"] = mu_y.flatten().cpu().numpy()
+
+    bt = Backtester("factor", cost=0.0, top_pct=top_pct).feed(df_test).run()
+    bt.report()
 ```
