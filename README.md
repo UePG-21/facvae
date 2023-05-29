@@ -118,8 +118,8 @@ from torch.utils.data import DataLoader
 
 if __name__ == "__main__":
     # constants
-    E = 80
-    B = 16
+    E = 20
+    B = 32
     N = 74
     T = 5
     C = 28
@@ -127,17 +127,17 @@ if __name__ == "__main__":
     M = 24
     K = 8
     h_prior_size = 32
-    h_alpha_size = 32
-    h_prior_size = 32
-    partition = [0.7, 0.15, 0.15]
-    lr = 1e-4
-    lmd = 1
+    h_alpha_size = 16
+    h_prior_size = 16
+    partition = [0.8, 0.1, 0.1]
+    lr = 0.01
+    gamma = 1.0
+    lmd = 1.0
     max_grad = None
     freq = "d"
     start_date = "2015-01-01"
     end_date = "2023-01-01"
     top_pct = 0.1
-    try_times = 100
     wins_thresh = 0.25
     verbose_freq = None
 
@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
     # pipeline
     ds = RollingDataset(df, "ret", T)
-    loss_kwargs = {"lmd": lmd}
+    loss_kwargs = {"gamma": gamma, "lmd": lmd}
     eval_kwargs = {"df": df, "top_pct": top_pct}
     pl = PipelineFactorVAE(ds, partition, B, loss_kwargs, eval_kwargs)
 
@@ -162,12 +162,10 @@ if __name__ == "__main__":
         pl.train(fv, lr, E, max_grad, verbose_freq=verbose_freq)
         sr_valid = pl.validate(fv)
         sr_test = pl.test(fv)
-
-        if sr_valid > 1.5:
-            print("sr_valid:", sr_valid)
-            print("sr_test:", sr_test)
-            if sr_test > 1.5:
-                torch.save(fv, dir_result + f"model_{i}")
+        print(sr_valid)
+        print(sr_test)
+        if sr_valid > 1.5 and sr_test > 1.5:
+            torch.save(fv, dir_result + f"model_{i}")
 
     # check
     model = torch.load(dir_result + "model_xxx")
@@ -177,6 +175,7 @@ if __name__ == "__main__":
     mu_y = mu_y.flatten().cpu().numpy()
     df["factor"] = np.nan
     df.iloc[-len(mu_y):, -1] = mu_y
+    print(df)
 
     bt = Backtester("factor", top_pct=top_pct).feed(df).run()
     bt.report()

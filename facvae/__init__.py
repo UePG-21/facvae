@@ -22,7 +22,7 @@ Coding convention:
     are used to denote scalars (constant)
 """
 
-__version__ = "0.1.4"
+__version__ = "0.1.3"
 
 __all__ = ["data", "pipeline", "backtesting"]
 
@@ -198,6 +198,7 @@ def loss_fn_vae(
     sigma_post: torch.Tensor,
     mu_prior: torch.Tensor,
     sigma_prior: torch.Tensor,
+    gamma: float = 1.0,
     lmd: float = 1.0,
 ) -> torch.Tensor:
     """Loss function of FactorVAE
@@ -218,6 +219,8 @@ def loss_fn_vae(
         Means of prior factor returns, B*K
     sigma_prior : torch.Tensor
         Stds of prior factor returns, B*K
+    gamma : float, optional
+        Gamma as regularization parameter, by default 1.0
     lmd : float, optional
         Lambda as regularization parameter, by default 1.0
 
@@ -226,14 +229,16 @@ def loss_fn_vae(
     torch.Tensor
         Loss values, B, denoted as `loss`
     """
+    dist_y = Normal(mu_y, sigma_y)
+    ll = dist_y.log_prob(y).mean(-1)
     ic = bcorr(y, mu_y)
     kld = gaussian_kld(mu_post, mu_prior, sigma_post, sigma_prior)
-    loss = -ic + lmd * kld
+    loss = -ic - gamma * ll + lmd * kld
     return loss
 
 
 def bcorr(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-    """Calculate correlation between two tensors where batch is the first dimension
+    """Calculate correlation between two tensors when batch is the first dimension
 
     Parameters
     ----------
@@ -310,7 +315,12 @@ class PipelineFactorVAE(Pipeline):
         )
 
     def calc_loss(
-        self, model: nn.Module, x: torch.Tensor, y: torch.Tensor, lmd: float
+        self,
+        model: nn.Module,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        gamma: float,
+        lmd: float,
     ) -> torch.Tensor:
         """Calculate the loss from the features and the label
 
@@ -322,6 +332,8 @@ class PipelineFactorVAE(Pipeline):
             Features, batch first
         y : torch.Tensor
             Labels, batch first
+        gamma : float
+            Gamma as regularization parameter
         lmd : float
             Lambda as regularization parameter
 
@@ -331,7 +343,7 @@ class PipelineFactorVAE(Pipeline):
             Mean of the loss values across batches
         """
         out = model(x, y)
-        loss = self.loss_fn(y, *out, lmd).mean(-1)
+        loss = self.loss_fn(y, *out, gamma, lmd).mean(-1)
         return loss
 
     def evaluate(
