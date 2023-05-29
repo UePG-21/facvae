@@ -1,8 +1,7 @@
-import random
-
+import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader, Subset, TensorDataset
+from torch.utils.data import TensorDataset
 
 
 class RollingDataset(TensorDataset):
@@ -76,43 +75,6 @@ class RollingDataset(TensorDataset):
         return self.T_ttl - self.T + 1
 
 
-def train_valid_test_split(
-    dataset: TensorDataset, partition: list[float], shuffle: bool = False
-) -> tuple[TensorDataset]:
-    """Split the full dataset into training, validation, and testing dataset
-
-    Parameters
-    ----------
-    dataset : TensorDataset
-        Full dataset
-    partition : list[float]
-        Percentages of training, validation, and testing dataset
-    shuffle : bool, optional
-        Shuffle the full dataset before spliting or not, by default False
-
-    Returns
-    -------
-    tuple[TensorDataset]
-        TensorDataset
-            Training dataset, denoted as `ds_train`
-        TensorDataset
-            Validation dataset, denoted as `ds_valid`
-        TensorDataset
-            Testing dataset, denoted as `ds_test`
-    """
-    if abs(sum(partition) - 1.0) > 1e9 or len(partition) != 3:
-        raise Exception("`partition` invalid")
-    L, (pct_train, pct_valid, _) = len(dataset), partition
-    indices = list(range(L))
-    if shuffle:
-        random.shuffle(indices)
-    len_train, len_valid = int(L * pct_train), int(L * pct_valid)
-    ds_train = Subset(dataset, indices[:len_train])
-    ds_valid = Subset(dataset, indices[len_train : len_train + len_valid])
-    ds_test = Subset(dataset, indices[len_train + len_valid :])
-    return ds_train, ds_valid, ds_test
-
-
 def change_freq(df: pd.DataFrame, freq: str) -> pd.DataFrame:
     """Change the frequency of the panel data
 
@@ -163,6 +125,48 @@ def shift_ret(df: pd.DataFrame, periods: int = 1) -> pd.DataFrame:
     if "ret" not in df.columns:
         raise Exception("`df` should contain a 'ret' column")
     return df.groupby(level=1).apply(cs_shift).dropna(axis=0)
+
+
+def wins_ret(df: pd.DataFrame, wins_thresh: float) -> pd.DataFrame:
+    """Winsorize returns
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Panel data with "ret" column
+    wins_thresh : float
+        Threshold of winsorization
+
+    Returns
+    -------
+    pd.DataFrame
+        Panel data with return winsorized
+    """
+
+    def wins(x: np.ndarray, l: float, u: float) -> np.ndarray:
+        """Winsorize x in [l, u]
+
+        Parameters
+        ----------
+        x : np.ndarray
+            Data to be winsorized
+        l : float
+            Lower bound
+        u : float
+            Upper bound
+
+        Returns
+        -------
+        np.ndarray
+            Winsorized values
+        """
+        return np.where(x < l, l, np.where(x > u, u, x))
+
+    if "ret" not in df.columns:
+        raise Exception("`df` should contain a 'ret' column")
+    df = df.copy()
+    df["ret"] = wins(df["ret"], -wins_thresh, wins_thresh)
+    return df
 
 
 def assign_label(
@@ -232,57 +236,3 @@ def assign_label(
     df = df.copy()
     df["label"] = df["ret"].groupby(level=0).apply(cs_assign)
     return df.drop("ret", axis=1), df["ret"]
-
-
-def get_dataloaders(
-    df: pd.DataFrame,
-    label_col: str,
-    window: int,
-    batch_size: int,
-    partition: list[float],
-    shuffle_ds: bool = False,
-    shuffle_dl: bool = True,
-    drop_last: bool = True,
-) -> tuple[DataLoader]:
-    """Get training, validation, and testing dataloader
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Panel data, T_ttl*N*(C+1)
-    label_col : str
-            Name of the label column
-    window : int
-        Size of rolling window, denoted as `T`
-    batch_size : int
-        How many samples per batch to load
-    partition : list[float]
-        Percentages of training, validation, and testing dataset
-    shuffle_ds : bool, optional
-        Shuffle the full dataset before spliting or not, by default False
-    shuffle_dl : bool, optional
-        Set to True to have the data reshuffled at every epoch, by default False
-    drop_last : bool, optionl
-        Set to True to drop the last incomplete batch, if the dataset size is not
-        divisible by the batch size. If False and the size of dataset is not divisible
-        by the batch size, then the last batch will be smaller, by default True
-
-    Returns
-    -------
-    tuple[DataLoader]
-        DataLoader
-            Training dataloader, denoted as `ds_train`
-        DataLoader | None
-            Validation dataloader, set to be None if the partition percentage of
-            validation is 0, denoted as `ds_valid`
-        DataLoader
-            Testing dataloader, denoted as `ds_test`
-    """
-    # get datasets
-    ds_full = RollingDataset(df, label_col, window)
-    ds_train, ds_valid, ds_test = train_valid_test_split(ds_full, partition, shuffle_ds)
-    # get dataloaders
-    dl_train = DataLoader(ds_train, batch_size, shuffle_dl, drop_last=drop_last)
-    dl_valid = DataLoader(ds_valid, len(ds_valid)) if len(ds_valid) else None
-    dl_test = DataLoader(ds_test, len(ds_test))
-    return dl_train, dl_valid, dl_test

@@ -120,6 +120,8 @@ class Backtester:
     def _get_perf(self):
         """Get performance of the strategy and the market
 
+        - "start_ts": start timestamp
+        - "end_ts": end timestamp
         - "ann_ret": annulized return
         - "ann_vol": annulized volatility
         - "mdd": maximum drawdown
@@ -139,6 +141,8 @@ class Backtester:
         sharpe_ratio = (ann_ret - self.r_f) / ann_vol
         calmar_ratio = (ann_ret - self.r_f) / abs(df_mdd.loc["mdd"])
         # load values
+        df_perf.loc["start_ts"] = df_ret.index[0]
+        df_perf.loc["end_ts"] = df_ret.index[-1]
         df_perf.loc["ann_ret"] = ann_ret
         df_perf.loc["ann_vol"] = ann_vol
         df_perf = pd.concat([df_perf, df_mdd], axis=0)

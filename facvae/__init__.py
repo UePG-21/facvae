@@ -22,18 +22,25 @@ Coding convention:
     are used to denote scalars (constant)
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.3"
 
 __all__ = ["data", "pipeline", "backtesting"]
 
 
+from typing import Any, Callable
+
+import pandas as pd
 import torch
 import torch.nn as nn
+from torch.distributions import Normal
+from torch.utils.data import DataLoader, TensorDataset
 
+from .backtesting import Backtester
 from .factor_decoder import FactorDecoder
 from .factor_encoder import FactorEncoder
 from .factor_predictor import FactorPredictor
 from .feature_extractor import FeatureExtractor
+from .pipeline import Pipeline
 
 
 class FactorVAE(nn.Module):
@@ -181,3 +188,173 @@ class FactorVAE(nn.Module):
         mu_prior, sigma_prior = self.predictor(e)
         mu_y, Sigma_y = self.decoder.predict(e, mu_prior, sigma_prior)
         return mu_y, Sigma_y
+
+
+def loss_fn_vae(
+    y: torch.Tensor,
+    mu_y: torch.Tensor,
+    sigma_y: torch.Tensor,
+    mu_post: torch.Tensor,
+    sigma_post: torch.Tensor,
+    mu_prior: torch.Tensor,
+    sigma_prior: torch.Tensor,
+    lmd: float = 1.0,
+) -> torch.Tensor:
+    """Loss function of FactorVAE
+
+    Parameters
+    ----------
+    y : torch.Tensor
+        Stock returns, B*N
+    mu_y : torch.Tensor
+        Predicted mean vector of stock returns, B*N
+    sigma_y : torch.Tensor
+        Predicted std vector of stock returns, B*N
+    mu_post : torch.Tensor
+        Means of posterior factor returns, B*K
+    sigma_post : torch.Tensor
+        Stds of posterior factor returns, B*K
+    mu_prior : torch.Tensor
+        Means of prior factor returns, B*K
+    sigma_prior : torch.Tensor
+        Stds of prior factor returns, B*K
+    lmd : float, optional
+        Lambda as regularization parameter, by default 1.0
+
+    Returns
+    -------
+    torch.Tensor
+        Loss values, B, denoted as `loss`
+    """
+    dist_y = Normal(mu_y, sigma_y)
+    ll = dist_y.log_prob(y).sum(-1)
+    kld = gaussian_kld(mu_post, mu_prior, sigma_post, sigma_prior)
+    loss = -ll + lmd * kld
+    return loss
+
+
+def gaussian_kld(
+    mu1: torch.Tensor, mu2: torch.Tensor, sigma1: torch.Tensor, sigma2: torch.Tensor
+) -> torch.Tensor:
+    """Calculate KL divergence of two multivariate independent Gaussian distributions
+
+    Parameters
+    ----------
+    mu1 : torch.Tensor
+        Means of the first Gaussian, B*K
+    mu2 : torch.Tensor
+        Means of the second Gaussian, B*K
+    sigma1 : torch.Tensor
+        Stds of the first Gaussian, B*K
+    sigma2 : torch.Tensor
+        Stds of the second Gaussian, B*K
+
+    Returns
+    -------
+    torch.Tensor
+        KL divergence, B, denoted as `kld`
+    """
+    kld_n = (
+        torch.log(sigma2 / sigma1)
+        + (sigma1**2 + (mu1 - mu2) ** 2) / (2 * sigma2**2)
+        - 0.5
+    )
+    return kld_n.sum(-1)
+
+
+class PipelineFactorVAE(Pipeline):
+    """Pipeline to automate FactorVAE workflow"""
+
+    def __init__(
+        self,
+        dataset: TensorDataset,
+        partition: list[float],
+        batch_size: int,
+        loss_kwargs: dict[str, Any] | None = None,
+        eval_kwargs: dict[str, Any] | None = None,
+        shuffle_ds: bool = False,
+        shuffle_dl: bool = True,
+        loss_fn: Callable[..., torch.Tensor] = loss_fn_vae,
+    ) -> None:
+        super().__init__(
+            loss_fn,
+            dataset,
+            partition,
+            batch_size,
+            loss_kwargs,
+            eval_kwargs,
+            shuffle_ds,
+            shuffle_dl,
+        )
+
+    def calc_loss(
+        self, model: nn.Module, x: torch.Tensor, y: torch.Tensor, lmd: float
+    ) -> torch.Tensor:
+        """Calculate the loss from the features and the label
+
+        Parameters
+        ----------
+        model : nn.Module
+            Model to be trained
+        x : torch.Tensor
+            Features, batch first
+        y : torch.Tensor
+            Labels, batch first
+        lmd : float
+            Lambda as regularization parameter
+
+        Returns
+        -------
+        torch.Tensor
+            Mean of the loss values across batches
+        """
+        out = model(x, y)
+        loss = self.loss_fn(y, *out, lmd).mean(-1)
+        return loss
+
+    def evaluate(
+        self,
+        model: nn.Module,
+        dataloader: DataLoader,
+        test: bool,
+        df: pd.DataFrame,
+        top_pct: float,
+    ) -> float:
+        """Evaluate a model
+
+        Parameters
+        ----------
+        model : nn.Module
+            Model to be evaluated
+        dataloader : DataLoader
+            Dataloader (could be validation or testing)
+        test : bool
+            For testing or not
+        df : pd.DataFrame
+            Panel data
+        top_pct : float
+            Invest stocks with factor value in the top percentile, by default 0.1
+
+        Returns
+        -------
+        float
+            Out-of-sample Sharpe ratio
+        """
+        ds = next(iter(dataloader))
+        x, _ = ds
+        mu_y, _ = model.predict(x)
+
+        # backtest
+        len_eval = ds[1].shape[0]
+        len_test = next(iter(self.dl_test))[1].shape[0]
+        idx = pd.IndexSlice
+        dates = df.index.get_level_values(0).unique()
+        if test:
+            df_eval = df.loc[idx[dates[-len_eval:], :]]
+        else:
+            df_eval = df.loc[idx[dates[-len_eval - len_test : -len_test], :]]
+        df_eval["factor"] = mu_y.flatten().cpu().numpy()
+
+        bt = Backtester("factor", cost=0.0, top_pct=top_pct).feed(df_eval).run()
+        # bt.report(False)
+        return bt.df_perf.loc["sharpe_ratio", "strat"]
