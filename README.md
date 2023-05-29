@@ -69,6 +69,7 @@ As an asset pricing model in economics and finance, factor model has been widely
 `FactorVAE` (*top-level encapsulated class*) extracts effective factors from noisy market data. First, it obtain optimal factors by an encoder-decoder architecture with access to future data, and then train a factor predictor according a prior-posterior learning method, which extracts factors to approximate the optimal factors.
 `PipelineFactorVAE` as a subclass of `Pipeline`, automates the training, validation, and testing process of the `FactorVAE`.
 `loss_fn_vae()` gets the loss value of the model.
+`bcorr()` calculates correlation between two tensors where batch is the first dimension.
 `gaussian_kld()` calculates KL divergence of two multivariate independent Gaussian distributions.
 
 
@@ -106,28 +107,29 @@ As an asset pricing model in economics and finance, factor model has been widely
 
 ## 4. Example
 ```Python
+import numpy as np
 import pandas as pd
-
-from facvae import FactorVAE
+import torch
+from facvae import FactorVAE, PipelineFactorVAE
 from facvae.backtesting import Backtester
-from facvae.data import change_freq, get_dataloaders, shift_ret
-from facvae.pipeline import test_model, train_model
-
+from facvae.data import RollingDataset, change_freq, shift_ret, wins_ret
+from facvae.pipeline import set_seeds
+from torch.utils.data import DataLoader
 
 if __name__ == "__main__":
     # constants
-    E = 15
-    B = 8
+    E = 80
+    B = 16
     N = 74
-    T = 20
-    C = 283
-    H = 64
+    T = 5
+    C = 28
+    H = 16
     M = 24
-    K = 16
-    h_prior_size = 128
+    K = 8
+    h_prior_size = 32
     h_alpha_size = 32
     h_prior_size = 32
-    partition = [0.8, 0.0, 0.2]
+    partition = [0.7, 0.15, 0.15]
     lr = 1e-4
     lmd = 1
     max_grad = None
@@ -135,37 +137,47 @@ if __name__ == "__main__":
     start_date = "2015-01-01"
     end_date = "2023-01-01"
     top_pct = 0.1
-
-    # model
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    fv = FactorVAE(C, H, M, K, h_prior_size, h_alpha_size, h_prior_size).to(device)
+    try_times = 100
+    wins_thresh = 0.25
+    verbose_freq = None
 
     # data
     df = pd.read_pickle("df.pickle")
     df = df.loc[start_date:end_date]
     df = change_freq(df, freq)
     df = shift_ret(df)
+    df = wins_ret(df, wins_thresh)
 
-    dl_train, dl_valid, dl_test = get_dataloaders(df, "ret", T, B, partition)
+    # pipeline
+    ds = RollingDataset(df, "ret", T)
+    loss_kwargs = {"lmd": lmd}
+    eval_kwargs = {"df": df, "top_pct": top_pct}
+    pl = PipelineFactorVAE(ds, partition, B, loss_kwargs, eval_kwargs)
 
-    # train
-    train_model(fv, dl_train, lr, E, lmd, max_grad)
+    # search
+    for i in range(2000):
+        set_seeds(i)
+        print("seed:", i)
+        fv = FactorVAE(C, H, M, K, h_prior_size, h_alpha_size, h_prior_size)
+        pl.train(fv, lr, E, max_grad, verbose_freq=verbose_freq)
+        sr_valid = pl.validate(fv)
+        sr_test = pl.test(fv)
 
-    # test
-    loss = test_model(fv, dl_test)
-    print("out-of-sample loss:", loss)
+        if sr_valid > 1.5:
+            print("sr_valid:", sr_valid)
+            print("sr_test:", sr_test)
+            if sr_test > 1.5:
+                torch.save(fv, dir_result + f"model_{i}")
 
-    # predict
-    x, y = next(iter(dl_test))
-    mu_y, Sigma_y = fv.predict(x)
+    # check
+    model = torch.load(dir_result + "model_xxx")
+    dl = DataLoader(ds, len(ds))
+    x, y = next(iter(dl))
+    mu_y, Sigma_y = model.predict(x)
+    mu_y = mu_y.flatten().cpu().numpy()
+    df["factor"] = np.nan
+    df.iloc[-len(mu_y):, -1] = mu_y
 
-    # backtest
-    len_test = next(iter(dl_test))[1].shape[0]
-    idx = pd.IndexSlice[df.index.get_level_values(0).unique()[-len_test:], :]
-    df_test = df.loc[idx]
-
-    df_test["factor"] = mu_y.flatten().cpu().numpy()
-
-    bt = Backtester("factor", cost=0.0, top_pct=top_pct).feed(df_test).run()
+    bt = Backtester("factor", top_pct=top_pct).feed(df).run()
     bt.report()
 ```

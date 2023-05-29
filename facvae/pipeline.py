@@ -188,7 +188,8 @@ class Pipeline(ABC):
         # train
         optimizer = optim_algo(model.parameters(), lr=learning_rate)
         for e in range(epochs):
-            print("=" * 16, f"Epoch {e}", "=" * 16)
+            if verbose_freq is not None:
+                print("=" * 16, f"Epoch {e}", "=" * 16)
             for b, (x, y) in enumerate(self.dl_train):
                 # calculate loss
                 loss = self.calc_loss(model, x, y, **self.loss_kwargs)

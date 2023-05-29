@@ -22,7 +22,7 @@ Coding convention:
     are used to denote scalars (constant)
 """
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 __all__ = ["data", "pipeline", "backtesting"]
 
@@ -226,11 +226,33 @@ def loss_fn_vae(
     torch.Tensor
         Loss values, B, denoted as `loss`
     """
-    dist_y = Normal(mu_y, sigma_y)
-    ll = dist_y.log_prob(y).sum(-1)
+    ic = bcorr(y, mu_y)
     kld = gaussian_kld(mu_post, mu_prior, sigma_post, sigma_prior)
-    loss = -ll + lmd * kld
+    loss = -ic + lmd * kld
     return loss
+
+
+def bcorr(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    """Calculate correlation between two tensors where batch is the first dimension
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        The first tensor, B*N
+    y : torch.Tensor
+        The sencond tensor, B*N
+
+    Returns
+    -------
+    torch.Tensor
+        Correlation coefficient, B, denoted as `corr`
+    """
+    x = x - x.mean(dim=1).unsqueeze(-1)
+    y = y - y.mean(dim=1).unsqueeze(-1)
+    cov = torch.einsum("bn, bn -> b", x, y) / x.shape[1]
+    x_std, y_std = x.std(dim=1), y.std(dim=1)
+    corr = cov / x_std / y_std
+    return corr
 
 
 def gaussian_kld(
