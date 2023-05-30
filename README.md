@@ -66,57 +66,43 @@ As an asset pricing model in economics and finance, factor model has been widely
 
 ## 3. Module
 ### 3.1. \_\_init\_\_.py
-`FactorVAE` (*top-level encapsulated class*) extracts effective factors from noisy market data. First, it obtain optimal factors by an encoder-decoder architecture with access to future data, and then train a factor predictor according a prior-posterior learning method, which extracts factors to approximate the optimal factors.
-
-`PipelineFactorVAE` as a subclass of `Pipeline`, automates the training, validation, and testing process of the `FactorVAE`.
-
-`loss_fn_vae()` gets the loss value of the model.
-
-`bcorr()` calculates batch correlation between two vectors.
-
-`gaussian_kld()` calculates KL divergence of two multivariate independent Gaussian distributions.
+- `FactorVAE` (*top-level encapsulated class*) extracts effective factors from noisy market data. First, it obtain optimal factors by an encoder-decoder architecture with access to future data, and then train a factor predictor according a prior-posterior learning method, which extracts factors to approximate the optimal factors.
+- `PipelineFactorVAE` as a subclass of `Pipeline`, automates the training, validation, and testing process of the `FactorVAE`.
+- `loss_fn_vae()` gets the loss value of the model.
+- `bcorr()` calculates batch correlation between two vectors.
+- `gaussian_kld()` calculates KL divergence of two multivariate independent Gaussian distributions.
 
 
 ### 3.2. data.py
-`RollingDataset` yields characteristics `x` in R^{N\*T\*C}, and future stock returns `y` in R^{N} in each iteration.
-
-`change_freq()` changes the frequency of the panel data.
-
-`shift_ret()` shifts returns to the previous period then drop NaN.
-
-`wins_ret()` winsorizes returns.
-
-`assign_label()` assigns labels based on different quantiles of the returns.
+- `RollingDataset` yields characteristics `x` in R^{N\*T\*C}, and future stock returns `y` in R^{N} in each iteration.
+- `change_freq()` changes the frequency of the panel data.
+- `shift_ret()` shifts returns to the previous period then drop NaN.
+- `wins_ret()` winsorizes returns.
+- `assign_label()` assigns labels based on different quantiles of the returns.
 
 ### 3.3. pipeline.py
-`Pipeline` gives a general machine learning pipeline which automates the model training, validation, and testing process.
-
-`set_seeds()` sets random seeds for all random processes.
+- `Pipeline` gives a general machine learning pipeline which automates the model training, validation, and testing process.
+- `set_seeds()` sets random seeds for all random processes.
 
 ### 3.4. backtesting.py
-`Backtester` backtests cross-sectinal strategies, by the following procedure: 1) `factor` $\rightarrow$ `pos`; 2) `pos` + `ret` $\rightarrow$ `strat_ret`; 3) `strat_ret` $\rightarrow$ `nv`.
+- `Backtester` backtests cross-sectinal strategies, by the following procedure: 1) `factor` $\rightarrow$ `pos`; 2) `pos` + `ret` $\rightarrow$ `strat_ret`; 3) `strat_ret` $\rightarrow$ `nv`.
 
 ### 3.5. feature_extractor.py
-`FeatureExtractor` extracts stocks hidden features `e` from the historical sequential characteristics `x`.
+- `FeatureExtractor` extracts stocks hidden features `e` from the historical sequential characteristics `x`.
 
 ### 3.6. factor_encoder.py
-`FactorEncoder` extracts posterior factors `z_post`, a random vector following the independent Gaussian distribution, which can be described by the mean `mu_post` and the standard deviation `sigma_post`, from hidden features `e` and stock returns `y`.
-
-`PortfolioLayer` dynamically re-weights the portfolios on the basis of stock hidden features `e`.
-
-`MappingLayer` maps `y_p` as the portfolio returns to the distribution of posterior factor returns `z_post`.
+- `FactorEncoder` extracts posterior factors `z_post`, a random vector following the independent Gaussian distribution, which can be described by the mean `mu_post` and the standard deviation `sigma_post`, from hidden features `e` and stock returns `y`.
+- `PortfolioLayer` dynamically re-weights the portfolios on the basis of stock hidden features `e`.
+- `MappingLayer` maps `y_p` as the portfolio returns to the distribution of posterior factor returns `z_post`.
 
 ### 3.7. factor_decoder.py
-`FactorDecoder` calculates predicted stock returns `y_hat`, a random vector following the Gaussian distribution, which can be described by the mean `mu_y` and the covariance matrix `Sigma_y`, from distribution parameters of factor returns `z` (could be `z_post` or `z_prior`) and hidden features `e`.
-
-`AlphaLayer` outputs idiosyncratic returns `alpha` from the hidden features `e`.
-
-`BetaLayer` calculates factor exposures `beta` from hidden feautres `e`.
+- `FactorDecoder` calculates predicted stock returns `y_hat`, a random vector following the Gaussian distribution, which can be described by the mean `mu_y` and the covariance matrix `Sigma_y`, from distribution parameters of factor returns `z` (could be `z_post` or `z_prior`) and hidden features `e`.
+- `AlphaLayer` outputs idiosyncratic returns `alpha` from the hidden features `e`.
+- `BetaLayer` calculates factor exposures `beta` from hidden feautres `e`.
 
 ### 3.8. factor_predictor.py
-`FactorPredictor` extracts prior factor returns `z_prior`, a random vector following the independent Gaussian distribution, which can be described by the mean `mu_prior` and the standard deviation `sigma_prior`, from hidden features `e`.
-
-`MultiheadGlobalAttention` implements a specific type of multi-head global attention.
+- `FactorPredictor` extracts prior factor returns `z_prior`, a random vector following the independent Gaussian distribution, which can be described by the mean `mu_prior` and the standard deviation `sigma_prior`, from hidden features `e`.
+- `MultiheadGlobalAttention` implements a specific type of multi-head global attention.
 
 
 ## 4. Example
