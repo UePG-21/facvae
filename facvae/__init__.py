@@ -22,7 +22,7 @@ Coding convention:
     are used to denote scalars (constant)
 """
 
-__version__ = "0.1.3"
+__version__ = "0.2.2"
 
 __all__ = ["data", "pipeline", "backtesting"]
 
@@ -199,7 +199,7 @@ def loss_fn_vae(
     mu_prior: torch.Tensor,
     sigma_prior: torch.Tensor,
     gamma: float = 1.0,
-    lmd: float = 1.0,
+    lmd: float = 0.5,
 ) -> torch.Tensor:
     """Loss function of FactorVAE
 
@@ -220,25 +220,25 @@ def loss_fn_vae(
     sigma_prior : torch.Tensor
         Stds of prior factor returns, B*K
     gamma : float, optional
-        Gamma as regularization parameter, by default 1.0
+        Gamma as regularization parameter, by default 2.0
     lmd : float, optional
-        Lambda as regularization parameter, by default 1.0
+        Lambda as mixing parameter, by default 0.5
 
     Returns
     -------
     torch.Tensor
         Loss values, B, denoted as `loss`
     """
-    dist_y = Normal(mu_y, sigma_y)
-    ll = dist_y.log_prob(y).mean(-1)
     ic = bcorr(y, mu_y)
+    dist_y = Normal(mu_y, sigma_y)
+    ll = dist_y.log_prob(y).sum(-1)
     kld = gaussian_kld(mu_post, mu_prior, sigma_post, sigma_prior)
-    loss = -ic - gamma * ll + lmd * kld
+    loss = -ic + gamma * ((1-lmd) * -ll + lmd * kld) / y.shape[1]
     return loss
 
 
 def bcorr(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-    """Calculate correlation between two tensors when batch is the first dimension
+    """Batch correlation between two vectors
 
     Parameters
     ----------
@@ -263,7 +263,7 @@ def bcorr(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 def gaussian_kld(
     mu1: torch.Tensor, mu2: torch.Tensor, sigma1: torch.Tensor, sigma2: torch.Tensor
 ) -> torch.Tensor:
-    """Calculate KL divergence of two multivariate independent Gaussian distributions
+    """KL divergence of two multivariate independent Gaussian distributions
 
     Parameters
     ----------

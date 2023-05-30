@@ -69,7 +69,7 @@ As an asset pricing model in economics and finance, factor model has been widely
 `FactorVAE` (*top-level encapsulated class*) extracts effective factors from noisy market data. First, it obtain optimal factors by an encoder-decoder architecture with access to future data, and then train a factor predictor according a prior-posterior learning method, which extracts factors to approximate the optimal factors.
 `PipelineFactorVAE` as a subclass of `Pipeline`, automates the training, validation, and testing process of the `FactorVAE`.
 `loss_fn_vae()` gets the loss value of the model.
-`bcorr()` calculates correlation between two tensors where batch is the first dimension.
+`bcorr()` calculates batch correlation between two vectors.
 `gaussian_kld()` calculates KL divergence of two multivariate independent Gaussian distributions.
 
 
@@ -131,8 +131,8 @@ if __name__ == "__main__":
     h_prior_size = 16
     partition = [0.8, 0.1, 0.1]
     lr = 0.01
-    gamma = 1.0
-    lmd = 1.0
+    gamma = 2.0
+    lmd = 0.5
     max_grad = None
     freq = "d"
     start_date = "2015-01-01"
