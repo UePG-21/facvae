@@ -1,6 +1,5 @@
 # facvae
-A PyTorch inplementation of FactorVAE with improvements, refering to ["FactorVAE: A Probabilistic Dynamic Factor Model Based on Variational Autoencoder for Predicting Cross-Sectional Stock Returns"](https://ojs.aaai.org/index.php/AAAI/article/view/20369)
-
+How to predict stock returns with cross-sectional information considered but also freeing the size of the stocks? Here's a PyTorch inplementation of FactorVAE with some improvements, refering to ["FactorVAE: A Probabilistic Dynamic Factor Model Based on Variational Autoencoder for Predicting Cross-Sectional Stock Returns"](https://ojs.aaai.org/index.php/AAAI/article/view/20369)
 
 ## 1. Introduction
 ### 1.1. Abstract
